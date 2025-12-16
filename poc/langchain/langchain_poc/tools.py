@@ -164,6 +164,15 @@ AVAILABLE_TOOLS = [
 ]
 
 
+def get_langchain_tools():
+    """LangChain用のツールリストを取得
+
+    LangChainの@toolデコレータで定義されたツールを返す。
+    LangGraphのToolNodeで使用可能。
+    """
+    return AVAILABLE_TOOLS
+
+
 def get_tool_node():
     """LangGraph用のToolNodeを取得"""
     from langgraph.prebuilt import ToolNode
