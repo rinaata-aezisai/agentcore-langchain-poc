@@ -1,0 +1,213 @@
+name: Deploy AgentCore Runtime
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'agentcore-runtime/**'
+      - '.github/workflows/deploy-agentcore-runtime.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPO_NAME: agentcore-poc-runtime
+  AGENT_NAME: agentcore-poc-strands
+
+jobs:
+  deploy:
+    name: Deploy to AgentCore Runtime
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS credentials
+        run: |
+          aws sts get-caller-identity
+          echo "AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Create ECR repository if not exists
+        run: |
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPO_NAME }} --region ${{ env.AWS_REGION }} || \
+          aws ecr create-repository \
+            --repository-name ${{ env.ECR_REPO_NAME }} \
+            --region ${{ env.AWS_REGION }} \
+            --image-scanning-configuration scanOnPush=true
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./agentcore-runtime
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}:latest
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create IAM Role for AgentCore Runtime
+        run: |
+          ROLE_NAME="AgentCoreRuntimeRole-${{ env.AGENT_NAME }}"
+          
+          if aws iam get-role --role-name "$ROLE_NAME" 2>/dev/null; then
+            echo "IAM Role already exists"
+          else
+            echo "Creating IAM Role..."
+            
+            cat > /tmp/trust-policy.json <<EOF
+          {
+              "Version": "2012-10-17",
+              "Statement": [
+                  {
+                      "Effect": "Allow",
+                      "Principal": {
+                          "Service": "bedrock-agentcore.amazonaws.com"
+                      },
+                      "Action": "sts:AssumeRole"
+                  }
+              ]
+          }
+          EOF
+            
+            aws iam create-role \
+              --role-name "$ROLE_NAME" \
+              --assume-role-policy-document file:///tmp/trust-policy.json
+            
+            cat > /tmp/bedrock-policy.json <<EOF
+          {
+              "Version": "2012-10-17",
+              "Statement": [
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "bedrock:InvokeModel",
+                          "bedrock:InvokeModelWithResponseStream"
+                      ],
+                      "Resource": "*"
+                  },
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "logs:CreateLogGroup",
+                          "logs:CreateLogStream",
+                          "logs:PutLogEvents"
+                      ],
+                      "Resource": "*"
+                  }
+              ]
+          }
+          EOF
+            
+            aws iam put-role-policy \
+              --role-name "$ROLE_NAME" \
+              --policy-name "BedrockInvokePolicy" \
+              --policy-document file:///tmp/bedrock-policy.json
+            
+            echo "Waiting for IAM role propagation..."
+            sleep 15
+          fi
+          
+          echo "ROLE_ARN=arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/$ROLE_NAME" >> $GITHUB_ENV
+
+      - name: Deploy AgentCore Runtime
+        id: deploy-runtime
+        run: |
+          ECR_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}:latest"
+          
+          EXISTING_ARN=$(aws bedrock-agentcore-control list-agent-runtimes \
+            --region ${{ env.AWS_REGION }} \
+            --query "agentRuntimes[?agentRuntimeName=='${{ env.AGENT_NAME }}'].agentRuntimeArn" \
+            --output text 2>/dev/null || echo "")
+          
+          if [ -n "$EXISTING_ARN" ] && [ "$EXISTING_ARN" != "None" ]; then
+            echo "Updating existing AgentCore Runtime..."
+            
+            aws bedrock-agentcore-control update-agent-runtime \
+              --agent-runtime-arn "$EXISTING_ARN" \
+              --agent-runtime-artifact "{\"containerConfiguration\":{\"containerUri\":\"$ECR_URI\"}}" \
+              --region ${{ env.AWS_REGION }}
+            
+            AGENT_RUNTIME_ARN="$EXISTING_ARN"
+          else
+            echo "Creating new AgentCore Runtime..."
+            
+            RESPONSE=$(aws bedrock-agentcore-control create-agent-runtime \
+              --agent-runtime-name "${{ env.AGENT_NAME }}" \
+              --agent-runtime-artifact "{\"containerConfiguration\":{\"containerUri\":\"$ECR_URI\"}}" \
+              --network-configuration '{"networkMode":"PUBLIC"}' \
+              --role-arn "${{ env.ROLE_ARN }}" \
+              --region ${{ env.AWS_REGION }} \
+              --output json)
+            
+            AGENT_RUNTIME_ARN=$(echo "$RESPONSE" | jq -r '.agentRuntimeArn')
+          fi
+          
+          echo "AGENT_RUNTIME_ARN=$AGENT_RUNTIME_ARN" >> $GITHUB_ENV
+          echo "agent_runtime_arn=$AGENT_RUNTIME_ARN" >> $GITHUB_OUTPUT
+
+      - name: Wait for Runtime to be ready
+        run: |
+          echo "Waiting for AgentCore Runtime to be ready..."
+          
+          for i in {1..30}; do
+            STATUS=$(aws bedrock-agentcore-control get-agent-runtime \
+              --agent-runtime-arn "${{ env.AGENT_RUNTIME_ARN }}" \
+              --region ${{ env.AWS_REGION }} \
+              --query "status" \
+              --output text 2>/dev/null || echo "UNKNOWN")
+            
+            echo "Status: $STATUS"
+            
+            if [ "$STATUS" = "READY" ]; then
+              echo "AgentCore Runtime is ready!"
+              break
+            elif [ "$STATUS" = "CREATE_FAILED" ] || [ "$STATUS" = "UPDATE_FAILED" ]; then
+              echo "AgentCore Runtime deployment failed!"
+              exit 1
+            fi
+            
+            sleep 10
+          done
+
+      - name: Output deployment info
+        run: |
+          echo "========================================"
+          echo "Deployment completed successfully!"
+          echo "========================================"
+          echo ""
+          echo "AgentCore Runtime ARN:"
+          echo "  ${{ env.AGENT_RUNTIME_ARN }}"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Add to GitHub Secrets: AGENT_RUNTIME_ARN=${{ env.AGENT_RUNTIME_ARN }}"
+          echo "  2. Redeploy backend to use AgentCore Runtime"
