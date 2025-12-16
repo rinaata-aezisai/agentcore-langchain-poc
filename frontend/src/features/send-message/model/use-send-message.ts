@@ -1,32 +1,29 @@
-"use client";
+/**
+ * Send Message Hook - TanStack Query + API連携
+ */
 
-import { useMutation } from "@tanstack/react-query";
-import { apiClient } from "@/shared/api/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { sessionApi, SendMessageRequest, SendMessageResponse } from "@/shared/api/client";
 
-interface SendMessageInput {
+interface UseSendMessageOptions {
   sessionId: string;
-  content: string;
+  onSuccess?: (response: SendMessageResponse) => void;
+  onError?: (error: Error) => void;
 }
 
-interface SendMessageResponse {
-  response_id: string;
-  content: string;
-  tool_calls?: { tool_id: string; result?: unknown }[];
-  latency_ms: number;
-}
+export function useSendMessage({ sessionId, onSuccess, onError }: UseSendMessageOptions) {
+  const queryClient = useQueryClient();
 
-export function useSendMessage() {
   return useMutation({
-    mutationFn: async ({ sessionId, content }: SendMessageInput) => {
-      return apiClient<SendMessageResponse>(
-        `/sessions/${sessionId}/messages`,
-        {
-          method: "POST",
-          body: JSON.stringify({ content }),
-        }
-      );
+    mutationFn: (data: SendMessageRequest) => sessionApi.sendMessage(sessionId, data),
+    onSuccess: (response) => {
+      // メッセージキャッシュを更新
+      queryClient.invalidateQueries({ queryKey: ["messages", sessionId] });
+      onSuccess?.(response);
+    },
+    onError: (error: Error) => {
+      console.error("Send message error:", error);
+      onError?.(error);
     },
   });
 }
-
-
