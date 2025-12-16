@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-16T05:02:49.500022+00:00",
+  "timestamp": "2025-12-16T05:08:09.653174+00:00",
   "results": [
     {
       "component": "strands-agents",
@@ -52,9 +52,23 @@
     },
     {
       "component": "aws",
+      "check_name": "credentials",
+      "status": "pass",
+      "message": "AWS認証確認: arn:aws:iam::226484346947:user/riu_tokiwa",
+      "details": null
+    },
+    {
+      "component": "strands-agents",
       "check_name": "bedrock_connection",
-      "status": "skip",
-      "message": "AWS認証情報未設定のためスキップ",
+      "status": "pass",
+      "message": "Bedrock接続成功: OK\n...",
+      "details": null
+    },
+    {
+      "component": "langchain",
+      "check_name": "bedrock_connection",
+      "status": "pass",
+      "message": "Bedrock接続成功: OK...",
       "details": null
     }
   ]

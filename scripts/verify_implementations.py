@@ -189,12 +189,23 @@ class ImplementationVerifier:
         """AWS Bedrock接続の検証（オプション）"""
         import os
 
-        if not os.getenv("AWS_ACCESS_KEY_ID") and not os.getenv("AWS_PROFILE"):
+        # boto3でAWS認証を確認
+        try:
+            import boto3
+            sts = boto3.client("sts")
+            identity = sts.get_caller_identity()
+            self.add_result(
+                "aws",
+                "credentials",
+                "pass",
+                f"AWS認証確認: {identity['Arn']}",
+            )
+        except Exception as e:
             self.add_result(
                 "aws",
                 "bedrock_connection",
                 "skip",
-                "AWS認証情報未設定のためスキップ",
+                f"AWS認証情報未設定のためスキップ: {e}",
             )
             return True
 
@@ -203,8 +214,9 @@ class ImplementationVerifier:
             from strands import Agent
             from strands.models import BedrockModel
 
+            # claude-3-haiku を使用（オンデマンド利用可能）
             model = BedrockModel(
-                model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
+                model_id="anthropic.claude-3-haiku-20240307-v1:0",
                 region_name=os.getenv("AWS_REGION", "us-east-1"),
             )
             agent = Agent(model=model)
@@ -229,8 +241,9 @@ class ImplementationVerifier:
             from langchain_aws import ChatBedrock
             from langchain_core.messages import HumanMessage
 
+            # claude-3-haiku を使用（オンデマンド利用可能）
             model = ChatBedrock(
-                model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
+                model_id="anthropic.claude-3-haiku-20240307-v1:0",
                 region_name=os.getenv("AWS_REGION", "us-east-1"),
             )
             response = await model.ainvoke(
