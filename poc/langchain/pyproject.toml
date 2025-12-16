@@ -1,13 +1,13 @@
 [project]
 name = "poc-langchain"
-version = "0.1.0"
-description = "LangChain / LangGraph PoC"
+version = "0.2.0"
+description = "LangChain / LangGraph PoC - 2025年12月版"
 requires-python = ">=3.11"
 
 dependencies = [
-    # LangChain Core
-    "langchain>=0.3.0",
-    "langgraph>=0.2.0",
+    # LangChain Core (2025年12月版)
+    "langchain>=1.1.0",
+    "langgraph>=1.0.0",
     
     # LLM Providers
     "langchain-aws>=0.2.0",

@@ -6,9 +6,21 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - AGENT_TYPE=${AGENT_TYPE:-langchain}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # 接続モード設定
+      # 1. AGENT_RUNTIME_ARN設定時 → AgentCore Runtime経由 (本番推奨)
+      # 2. AGENT_RUNTIME_ARN未設定 → Direct Bedrock (strands/langchain)
+      # 3. ENVIRONMENT=development → MockAgentPort (ローカル開発)
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - AGENT_TYPE=${AGENT_TYPE:-strands}
       - AWS_REGION=${AWS_REGION:-us-east-1}
+      # AgentCore Runtime接続用 (本番環境で設定)
+      - AGENT_RUNTIME_ARN=${AGENT_RUNTIME_ARN:-}
+      - AGENT_RUNTIME_QUALIFIER=${AGENT_RUNTIME_QUALIFIER:-DEFAULT}
+      # Direct Bedrock用 (フォールバック)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
     volumes:
       - ./backend/src:/app/src
       - ./poc:/app/poc  # PoC依存

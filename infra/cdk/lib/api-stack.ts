@@ -11,6 +11,8 @@ export interface ApiStackProps extends cdk.StackProps {
   environment: string;
   eventTable: dynamodb.Table;
   eventBus: events.EventBus;
+  /** AgentCore Runtime ARN (optional) - 設定するとAgentCore Runtime経由で接続 */
+  agentRuntimeArn?: string;
 }
 
 /**
@@ -25,7 +27,7 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { environment, eventTable, eventBus } = props;
+    const { environment, eventTable, eventBus, agentRuntimeArn } = props;
 
     // ===========================================
     // Lambda Function for Backend
@@ -51,6 +53,8 @@ export class ApiStack extends cdk.Stack {
         AGENT_TYPE: 'strands',  // or 'langchain'
         AWS_REGION_NAME: this.region,
         LOG_LEVEL: environment === 'prod' ? 'INFO' : 'DEBUG',
+        // AgentCore Runtime ARN (設定されている場合はAgentCore Runtime経由で接続)
+        ...(agentRuntimeArn && { AGENT_RUNTIME_ARN: agentRuntimeArn }),
       },
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
@@ -66,7 +70,7 @@ export class ApiStack extends cdk.Stack {
       })
     );
 
-    // Bedrock permissions
+    // Bedrock permissions (Direct Bedrock fallback)
     this.backendFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: [
@@ -74,6 +78,20 @@ export class ApiStack extends cdk.Stack {
           'bedrock:InvokeModelWithResponseStream',
         ],
         resources: ['*'],
+      })
+    );
+
+    // AgentCore Runtime permissions (本番推奨)
+    // invoke_agent_runtime() でECRにデプロイされたエージェントを呼び出す
+    this.backendFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'bedrock-agentcore:InvokeAgentRuntime',
+          'bedrock-agentcore:InvokeAgentRuntimeForUser',
+        ],
+        resources: agentRuntimeArn 
+          ? [agentRuntimeArn, `${agentRuntimeArn}/*`]
+          : ['*'],
       })
     );
 

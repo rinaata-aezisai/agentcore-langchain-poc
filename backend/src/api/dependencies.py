@@ -1,7 +1,19 @@
 """FastAPI Dependencies - Dependency Injection Configuration
 
 DIコンテナとしてFastAPIのDependsを使用。
-環境変数でAgentType（strands/langchain）を切り替え可能。
+
+接続モード:
+1. AgentCore Runtime (本番推奨):
+   - AGENT_RUNTIME_ARN が設定されている場合
+   - invoke_agent_runtime() でECRにデプロイされたエージェントを呼び出し
+
+2. Direct Bedrock (開発/テスト用):
+   - AGENT_RUNTIME_ARN が未設定の場合
+   - strands_poc/langchain_poc 経由でBedrockを直接呼び出し
+
+3. Mock (ローカル開発用):
+   - ENVIRONMENT=development の場合
+   - AWS認証不要のモックレスポンス
 """
 
 import os
@@ -53,6 +65,11 @@ class Settings:
         )
         self.langfuse_enabled = os.getenv("LANGFUSE_ENABLED", "false").lower() == "true"
 
+        # AgentCore Runtime設定 (本番環境用)
+        # ARNが設定されている場合はAgentCore Runtime経由で接続
+        self.agent_runtime_arn = os.getenv("AGENT_RUNTIME_ARN")
+        self.agent_runtime_qualifier = os.getenv("AGENT_RUNTIME_QUALIFIER", "DEFAULT")
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -95,19 +112,86 @@ def get_session_repository(
 # ===========================================
 
 def get_agent_port(settings: Annotated[Settings, Depends(get_settings)]) -> AgentPort:
-    """AgentPortのDI - 環境変数で切り替え"""
+    """AgentPortのDI - 環境と設定で切り替え
+
+    優先順位:
+    1. development環境 → MockAgentPort（AWS認証不要）
+    2. AGENT_RUNTIME_ARN設定あり → AgentCore Runtime経由（本番推奨）
+    3. それ以外 → Direct Bedrock（strands/langchain）
+    """
+    # 1. 開発環境ではモックエージェントを使用（AWS認証不要）
+    if settings.environment == "development":
+        print("Using MockAgentPort for development environment")
+        return MockAgentPort()
+
+    # 2. AGENT_RUNTIME_ARNが設定されている場合はAgentCore Runtime経由
+    if settings.agent_runtime_arn:
+        print(f"Using AgentCore Runtime: {settings.agent_runtime_arn}")
+        try:
+            from infrastructure.agents.agentcore_runtime_adapter import (
+                create_agentcore_runtime_adapter,
+            )
+            return create_agentcore_runtime_adapter(
+                agent_runtime_arn=settings.agent_runtime_arn,
+                region=settings.aws_region,
+                qualifier=settings.agent_runtime_qualifier,
+            )
+        except ImportError as e:
+            print(f"Warning: Failed to import agentcore_runtime_adapter: {e}")
+            return MockAgentPort()
+
+    # 3. Direct Bedrock（フォールバック）
+    print(f"Using Direct Bedrock with {settings.agent_type}")
     if settings.agent_type == "langchain":
-        from poc.langchain.src.adapter import create_langchain_adapter
-        return create_langchain_adapter(
-            model_id=settings.bedrock_model_id,
-            region=settings.aws_region,
-            langfuse_enabled=settings.langfuse_enabled,
-        )
+        try:
+            from langchain_poc.adapter import create_langchain_adapter
+            return create_langchain_adapter(
+                model_id=settings.bedrock_model_id,
+                region=settings.aws_region,
+            )
+        except ImportError:
+            print("Warning: langchain_poc not installed, using mock agent")
+            return MockAgentPort()
     else:
-        from poc.strands_agents.src.adapter import create_strands_adapter
-        return create_strands_adapter(
-            model_id=settings.bedrock_model_id,
-            region=settings.aws_region,
+        try:
+            from strands_poc.adapter import create_strands_adapter
+            return create_strands_adapter(
+                model_id=settings.bedrock_model_id,
+                region=settings.aws_region,
+            )
+        except ImportError:
+            print("Warning: strands_poc not installed, using mock agent")
+            return MockAgentPort()
+
+
+class MockAgentPort(AgentPort):
+    """開発用モックエージェント（AWS認証不要）"""
+
+    async def execute(self, context, instruction: str):
+        """モック実行"""
+        from application.ports.agent_port import AgentResponse
+        return AgentResponse(
+            content=f"[Mock Response] あなたのメッセージ: {instruction}\n\nこれは開発環境のモックレスポンスです。本番環境ではAWS Bedrockを通じて実際のLLMが応答します。",
+            metadata={
+                "provider": "mock",
+                "model_id": "mock-model",
+                "latency_ms": 100,
+            },
+        )
+
+    async def execute_with_tools(self, context, instruction: str, tools=None):
+        """モック実行（ツール付き）"""
+        from application.ports.agent_port import AgentResponse
+        tool_info = f"利用可能なツール: {len(tools) if tools else 0}個" if tools else ""
+        return AgentResponse(
+            content=f"[Mock Response with Tools] あなたのメッセージ: {instruction}\n{tool_info}\n\nこれは開発環境のモックレスポンスです。",
+            tool_calls=None,
+            metadata={
+                "provider": "mock",
+                "model_id": "mock-model",
+                "latency_ms": 150,
+                "tools_available": len(tools) if tools else 0,
+            },
         )
 
 

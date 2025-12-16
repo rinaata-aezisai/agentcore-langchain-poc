@@ -15,6 +15,8 @@ export interface EcsStackProps extends cdk.StackProps {
   frontendRepository: ecr.Repository;
   eventTable: dynamodb.Table;
   eventBus: events.EventBus;
+  /** AgentCore Runtime ARN (optional) - 設定するとAgentCore Runtime経由で接続 */
+  agentRuntimeArn?: string;
 }
 
 /**
@@ -37,6 +39,7 @@ export class EcsStack extends cdk.Stack {
       frontendRepository,
       eventTable,
       eventBus,
+      agentRuntimeArn,
     } = props;
 
     // ===========================================
@@ -74,7 +77,7 @@ export class EcsStack extends cdk.Stack {
       cpu: 512,
     });
 
-    // Bedrock permissions
+    // Bedrock permissions (Direct Bedrock fallback)
     backendTaskDef.addToTaskRolePolicy(
       new iam.PolicyStatement({
         actions: [
@@ -82,6 +85,20 @@ export class EcsStack extends cdk.Stack {
           'bedrock:InvokeModelWithResponseStream',
         ],
         resources: ['*'],
+      })
+    );
+
+    // AgentCore Runtime permissions (本番推奨)
+    // invoke_agent_runtime() でECRにデプロイされたエージェントを呼び出す
+    backendTaskDef.addToTaskRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'bedrock-agentcore:InvokeAgentRuntime',
+          'bedrock-agentcore:InvokeAgentRuntimeForUser',
+        ],
+        resources: agentRuntimeArn 
+          ? [agentRuntimeArn, `${agentRuntimeArn}/*`]
+          : ['*'],
       })
     );
 
@@ -96,19 +113,27 @@ export class EcsStack extends cdk.Stack {
       })
     );
 
+    // Backend環境変数を構築
+    const backendEnvironment: Record<string, string> = {
+      ENVIRONMENT: environment,
+      AGENT_TYPE: 'strands',
+      EVENT_TABLE_NAME: eventTable.tableName,
+      EVENT_BUS_NAME: eventBus.eventBusName,
+      AWS_REGION: this.region,
+    };
+
+    // AgentCore Runtime ARNが設定されている場合は環境変数に追加
+    if (agentRuntimeArn) {
+      backendEnvironment.AGENT_RUNTIME_ARN = agentRuntimeArn;
+    }
+
     const backendContainer = backendTaskDef.addContainer('backend', {
       image: ecs.ContainerImage.fromEcrRepository(backendRepository, 'latest'),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'backend',
         logRetention: logs.RetentionDays.ONE_WEEK,
       }),
-      environment: {
-        ENVIRONMENT: environment,
-        AGENT_TYPE: 'strands',
-        EVENT_TABLE_NAME: eventTable.tableName,
-        EVENT_BUS_NAME: eventBus.eventBusName,
-        AWS_REGION: this.region,
-      },
+      environment: backendEnvironment,
       portMappings: [{ containerPort: 8000 }],
     });
 

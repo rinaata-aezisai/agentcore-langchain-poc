@@ -1,12 +1,15 @@
 [project]
 name = "poc-strands-agents"
-version = "0.1.0"
-description = "AWS Bedrock AgentCore (Strands Agents) PoC"
+version = "0.2.0"
+description = "AWS Bedrock AgentCore (Strands Agents) PoC - 2025年12月版"
 requires-python = ">=3.11"
 
 dependencies = [
     # Strands Agents (AgentCore Python SDK)
     "strands-agents>=1.20.0",
+    
+    # Bedrock AgentCore SDK (Memory, Gateway, Policy, Evaluations等)
+    "bedrock-agentcore>=0.1.0",
     
     # Backend (workspace内依存)
     "agentcore-poc-backend",

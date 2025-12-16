@@ -1904,6 +1904,37 @@ echo "3. 並行実装を開始"
 
 ---
 
+### バージョン 2.1（2025年12月16日）
+
+**🔧 実装コードを最新API仕様に更新**
+
+#### AgentCore (Strands Agents) の実装更新
+- ✅ `bedrock-agentcore` SDK 統合（Memory API、Gateway、Policy対応準備）
+- ✅ `AgentCoreMemoryManager` クラス追加（短期/長期メモリ、エピソード記憶）
+- ✅ プロンプト/ツールキャッシング対応（`cache_prompt`, `cache_tools`）
+- ✅ Guardrails設定サポート
+- ✅ Reasoning（推論可視化）サポート
+- ✅ 最新モデルID対応（`us.anthropic.claude-sonnet-4-20250514-v1:0`）
+- ✅ `SystemContentBlock`によるキャッシュポイント設定
+
+#### LangChain / LangGraph の実装更新
+- ✅ LangChain 1.1 / LangGraph 1.0 GA 対応
+- ✅ `create_agent` API への移行準備（`langgraph.prebuilt`非推奨対応）
+- ✅ Middleware システム対応（`SummarizationMiddleware`等）
+- ✅ Model Profiles 対応準備
+- ✅ 従来のStateGraph方式との互換性維持
+
+#### ファイル更新一覧
+- `poc/strands-agents/pyproject.toml` - bedrock-agentcore SDK追加
+- `poc/strands-agents/strands_poc/adapter.py` - Memory API統合、キャッシング対応
+- `poc/strands-agents/strands_poc/tools.py` - 新ツール追加、MCP形式対応
+- `poc/strands-agents/strands_poc/example.py` - 最新機能の使用例
+- `poc/langchain/pyproject.toml` - バージョン更新（1.1.0, 1.0.0）
+- `poc/langchain/langchain_poc/adapter.py` - create_agent対応、Middleware対応
+- `poc/langchain/langchain_poc/example.py` - 最新機能の使用例
+
+---
+
 ### バージョン 2.0（2025年12月15日初版）
 
 - 実装サンプル検証のベストプラクティス追加
