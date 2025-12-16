@@ -1,34 +1,404 @@
 {
-  "$schema": "https://raw.githubusercontent.com/aws-amplify/amplify-backend/main/packages/client-config/src/client-config-schema/schema_v1.json",
-  "version": "1.3",
   "auth": {
-    "user_pool_id": "${USER_POOL_ID}",
-    "user_pool_client_id": "${USER_POOL_CLIENT_ID}",
-    "aws_region": "us-east-1",
-    "identity_pool_id": "${IDENTITY_POOL_ID}",
-    "standard_required_attributes": ["email"],
-    "username_attributes": ["email"],
-    "user_verification_types": ["email"],
+    "user_pool_id": "ap-northeast-1_urcbai3PM",
+    "aws_region": "ap-northeast-1",
+    "user_pool_client_id": "68ua0f2mh6ou8qs9r2nonqeueb",
+    "identity_pool_id": "ap-northeast-1:cceb6495-abb4-441a-88e3-bf7440ca0a2c",
+    "mfa_methods": [],
+    "standard_required_attributes": [
+      "email"
+    ],
+    "username_attributes": [
+      "email"
+    ],
+    "user_verification_types": [
+      "email"
+    ],
+    "groups": [],
+    "mfa_configuration": "NONE",
     "password_policy": {
       "min_length": 8,
       "require_lowercase": true,
-      "require_uppercase": true,
       "require_numbers": true,
-      "require_symbols": false
+      "require_symbols": true,
+      "require_uppercase": true
     },
-    "unauthenticated_identities_enabled": false
+    "unauthenticated_identities_enabled": true
   },
   "data": {
-    "aws_region": "us-east-1",
-    "url": "${GRAPHQL_ENDPOINT}",
-    "api_key": "${API_KEY}",
+    "url": "https://dzqq2hudpnabxddmar3gv46vjq.appsync-api.ap-northeast-1.amazonaws.com/graphql",
+    "aws_region": "ap-northeast-1",
     "default_authorization_type": "AMAZON_COGNITO_USER_POOLS",
-    "authorization_types": ["AMAZON_COGNITO_USER_POOLS", "API_KEY"]
+    "authorization_types": [
+      "AWS_IAM"
+    ],
+    "model_introspection": {
+      "version": 1,
+      "models": {
+        "ChatSession": {
+          "name": "ChatSession",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "sessionId": {
+              "name": "sessionId",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "agentType": {
+              "name": "agentType",
+              "isArray": false,
+              "type": {
+                "enum": "ChatSessionAgentType"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "userId": {
+              "name": "userId",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "state": {
+              "name": "state",
+              "isArray": false,
+              "type": {
+                "enum": "ChatSessionState"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "messages": {
+              "name": "messages",
+              "isArray": true,
+              "type": {
+                "model": "ChatMessage"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "sessionId"
+                ]
+              }
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": []
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": []
+            }
+          },
+          "syncable": true,
+          "pluralName": "ChatSessions",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "provider": "userPools",
+                    "ownerField": "owner",
+                    "allow": "owner",
+                    "identityClaim": "cognito:username",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        },
+        "ChatMessage": {
+          "name": "ChatMessage",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "messageId": {
+              "name": "messageId",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "sessionId": {
+              "name": "sessionId",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "role": {
+              "name": "role",
+              "isArray": false,
+              "type": {
+                "enum": "ChatMessageRole"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "content": {
+              "name": "content",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "toolCalls": {
+              "name": "toolCalls",
+              "isArray": false,
+              "type": "AWSJSON",
+              "isRequired": false,
+              "attributes": []
+            },
+            "metadata": {
+              "name": "metadata",
+              "isArray": false,
+              "type": "AWSJSON",
+              "isRequired": false,
+              "attributes": []
+            },
+            "latencyMs": {
+              "name": "latencyMs",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": false,
+              "attributes": []
+            },
+            "session": {
+              "name": "session",
+              "isArray": false,
+              "type": {
+                "model": "ChatSession"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "sessionId"
+                ]
+              }
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": []
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "ChatMessages",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "provider": "userPools",
+                    "ownerField": "owner",
+                    "allow": "owner",
+                    "identityClaim": "cognito:username",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        },
+        "BenchmarkResult": {
+          "name": "BenchmarkResult",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "resultId": {
+              "name": "resultId",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "testName": {
+              "name": "testName",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "strandsLatencyMs": {
+              "name": "strandsLatencyMs",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": false,
+              "attributes": []
+            },
+            "langchainLatencyMs": {
+              "name": "langchainLatencyMs",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": false,
+              "attributes": []
+            },
+            "strandsSuccess": {
+              "name": "strandsSuccess",
+              "isArray": false,
+              "type": "Boolean",
+              "isRequired": false,
+              "attributes": []
+            },
+            "langchainSuccess": {
+              "name": "langchainSuccess",
+              "isArray": false,
+              "type": "Boolean",
+              "isRequired": false,
+              "attributes": []
+            },
+            "metadata": {
+              "name": "metadata",
+              "isArray": false,
+              "type": "AWSJSON",
+              "isRequired": false,
+              "attributes": []
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": []
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "BenchmarkResults",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "private",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        }
+      },
+      "enums": {
+        "ChatSessionAgentType": {
+          "name": "ChatSessionAgentType",
+          "values": [
+            "STRANDS",
+            "LANGCHAIN"
+          ]
+        },
+        "ChatSessionState": {
+          "name": "ChatSessionState",
+          "values": [
+            "ACTIVE",
+            "ENDED",
+            "PAUSED"
+          ]
+        },
+        "ChatMessageRole": {
+          "name": "ChatMessageRole",
+          "values": [
+            "USER",
+            "ASSISTANT",
+            "SYSTEM"
+          ]
+        }
+      },
+      "nonModels": {}
+    }
   },
-  "custom": {
-    "api_endpoint": "${API_ENDPOINT:-http://localhost:8000}",
-    "bedrock_region": "us-east-1",
-    "bedrock_model_id": "anthropic.claude-3-haiku-20240307-v1:0"
-  }
+  "version": "1.4"
 }
-
