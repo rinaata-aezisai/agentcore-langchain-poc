@@ -69,3 +69,4 @@ out/
 # CDK
 cdk.out/
 
+!frontend/src/lib/
