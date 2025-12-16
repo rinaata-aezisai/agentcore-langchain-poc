@@ -1,0 +1,30 @@
+[project]
+name = "poc-langchain"
+version = "0.1.0"
+description = "LangChain + LangGraph PoC"
+requires-python = ">=3.11"
+
+dependencies = [
+    # LangChain Ecosystem
+    "langchain>=0.3.0",
+    "langchain-anthropic>=0.3.0",
+    "langchain-aws>=0.2.0",
+    "langgraph>=0.2.0",
+    
+    # Observability
+    "langfuse>=2.0.0",
+    "langsmith>=0.1.0",
+    
+    # backend参照 (editable install)
+    # pip install -e ../../backend
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3.0", "pytest-asyncio>=0.24.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "../../backend/src"]
