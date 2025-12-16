@@ -1,16 +1,16 @@
 # AgentCore vs LangChain PoC 検証レポート
 
-**生成日時**: 2025-12-16 05:02:49 UTC
+**生成日時**: 2025-12-16 05:08:09 UTC
 
 ## サマリー
 
 | 項目 | 結果 |
 |------|------|
-| 総検証項目数 | 8 |
-| 成功 | 7 ✅ |
+| 総検証項目数 | 10 |
+| 成功 | 10 ✅ |
 | 失敗 | 0 ❌ |
-| スキップ | 1 ⏭️ |
-| 成功率 | 87.5% |
+| スキップ | 0 ⏭️ |
+| 成功率 | 100.0% |
 
 ## 検証結果詳細
 
@@ -21,6 +21,8 @@
 | core_imports | ✅ pass | Agent, BedrockModel インポート成功 |
 | adapter_implementation | ✅ pass | StrandsAgentAdapter 実装確認 |
 | port_implementation | ✅ pass | AgentPort インターフェース実装確認 |
+| bedrock_connection | ✅ pass | Bedrock接続成功: OK
+... |
 
 ### langchain
 
@@ -29,6 +31,7 @@
 | core_imports | ✅ pass | ChatBedrock, LangGraph インポート成功 |
 | adapter_implementation | ✅ pass | LangChainAgentAdapter 実装確認 |
 | port_implementation | ✅ pass | AgentPort インターフェース実装確認 |
+| bedrock_connection | ✅ pass | Bedrock接続成功: OK... |
 
 ### backend
 
@@ -40,7 +43,7 @@
 
 | チェック項目 | ステータス | メッセージ |
 |-------------|----------|----------|
-| bedrock_connection | ⏭️ skip | AWS認証情報未設定のためスキップ |
+| credentials | ✅ pass | AWS認証確認: arn:aws:iam::226484346947:user/riu_tokiwa |
 
 ## 実装アーキテクチャ
 
