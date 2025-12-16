@@ -4,35 +4,32 @@ import { ServiceTest } from "@/widgets/service-test";
 
 const testCases = [
   {
-    id: "gateway-tool-call",
-    name: "ツール呼び出し",
-    prompt: "東京の天気を調べてください。",
-    expectedBehavior: "天気ツールが呼び出される",
+    id: "gateway-routes",
+    name: "ルート一覧取得",
+    endpoint: "/services/gateway/routes",
+    method: "GET" as const,
+    expectedBehavior: "登録済みルートの一覧を取得",
   },
   {
-    id: "gateway-multi-tool",
-    name: "複数ツール連携",
-    prompt: "東京の天気を調べて、その結果を元にタスクを作成してください。",
-    expectedBehavior: "複数ツールが順序立てて呼び出される",
+    id: "gateway-metrics",
+    name: "メトリクス取得",
+    endpoint: "/services/gateway/metrics",
+    method: "GET" as const,
+    expectedBehavior: "API使用状況のメトリクスを取得",
   },
   {
-    id: "gateway-mcp",
-    name: "MCPサーバー連携",
-    prompt: "MCPプロトコルでツールを呼び出せますか？",
-    expectedBehavior: "MCP対応状況の確認",
-  },
-  {
-    id: "gateway-api-transform",
-    name: "API変換",
-    prompt: "外部APIの結果を自然言語で説明してください。",
-    expectedBehavior: "APIレスポンスの適切な変換",
+    id: "gateway-ratelimit",
+    name: "レート制限状態",
+    endpoint: "/services/gateway/rate-limit",
+    method: "GET" as const,
+    expectedBehavior: "レート制限の現在状態を取得",
   },
 ];
 
 export default function GatewayPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
           <span>Services</span>
           <span>/</span>
@@ -43,41 +40,45 @@ export default function GatewayPage() {
 
       <ServiceTest
         serviceName="Gateway"
-        serviceDescription="API、Lambda関数をMCP対応ツールに変換。Model Context Protocol完全サポート。"
+        serviceKey="gateway"
+        serviceDescription="エージェントAPIのルーティングとレート制限管理。認証・認可の統合。"
         testCases={testCases}
         strandsFeatures={[
-          "MCP (Model Context Protocol) 完全対応",
-          "Lambda関数の自動ツール化",
-          "API Gateway統合",
-          "自動スキーマ生成",
+          "AgentCore Gateway統合",
+          "自動認証フロー",
+          "内蔵レート制限",
+          "AWS API Gateway連携",
         ]}
         langchainFeatures={[
-          "LangChain Tools",
-          "@tool デコレータ",
-          "ToolNode (LangGraph)",
-          "カスタムツール定義",
+          "LangServe統合",
+          "FastAPI自動生成",
+          "OpenAPI/Swagger対応",
+          "Playground UI",
         ]}
-        strandsExample={`from strands import tool
+        strandsExample={`# AgentCore Gateway
+# 自動的にエンドポイントが生成される
 
-@tool
-def get_weather(location: str) -> dict:
-    """Get weather for location"""
-    return {"temp": 20, "condition": "sunny"}
+# AWS経由でデプロイ
+# bedrock-agent-runtime invoke-agent \\
+#   --agent-id <agent-id> \\
+#   --session-id <session-id>`}
+        langchainExample={`from langserve import add_routes
+from fastapi import FastAPI
 
-agent = Agent(
-    model=model,
-    tools=[get_weather]
-)`}
-        langchainExample={`from langchain_core.tools import tool
+app = FastAPI()
 
-@tool
-def get_weather(location: str) -> dict:
-    """Get weather for location"""
-    return {"temp": 20, "condition": "sunny"}
+# LangChain Runnableをルートとして登録
+add_routes(
+    app,
+    runnable,
+    path="/chat",
+)
 
-model_with_tools = model.bind_tools([get_weather])`}
+# 自動生成されるエンドポイント:
+# POST /chat/invoke
+# POST /chat/stream
+# GET /chat/playground`}
       />
     </div>
   );
 }
-

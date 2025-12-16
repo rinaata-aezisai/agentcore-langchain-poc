@@ -4,35 +4,33 @@ import { ServiceTest } from "@/widgets/service-test";
 
 const testCases = [
   {
+    id: "browser-state",
+    name: "ページ状態取得",
+    endpoint: "/services/browser/state",
+    method: "GET" as const,
+    expectedBehavior: "現在のページ状態を取得",
+  },
+  {
     id: "browser-navigate",
-    name: "ページナビゲーション",
-    prompt: "Googleのホームページにアクセスしてタイトルを取得してください。",
-    expectedBehavior: "Webページへのアクセスとスクレイピング",
+    name: "ナビゲーション",
+    endpoint: "/services/browser/navigate",
+    method: "POST" as const,
+    body: { url: "https://example.com" },
+    expectedBehavior: "指定URLに移動",
   },
   {
-    id: "browser-form",
-    name: "フォーム操作",
-    prompt: "検索フォームに「AI Agent」と入力して検索を実行してください。",
-    expectedBehavior: "フォーム入力と送信",
-  },
-  {
-    id: "browser-screenshot",
-    name: "スクリーンショット",
-    prompt: "現在のページのスクリーンショットを撮影してください。",
-    expectedBehavior: "画像キャプチャ",
-  },
-  {
-    id: "browser-dynamic",
-    name: "動的コンテンツ",
-    prompt: "JavaScriptで動的に生成されるコンテンツを取得してください。",
-    expectedBehavior: "SPAサイトの操作",
+    id: "browser-text",
+    name: "テキスト抽出",
+    endpoint: "/services/browser/text",
+    method: "GET" as const,
+    expectedBehavior: "ページからテキストを抽出",
   },
 ];
 
 export default function BrowserPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
           <span>Services</span>
           <span>/</span>
@@ -43,40 +41,48 @@ export default function BrowserPage() {
 
       <ServiceTest
         serviceName="Browser"
-        serviceDescription="Webアプリケーション操作用のクラウドブラウザ環境。自動化タスク対応。"
+        serviceKey="browser"
+        serviceDescription="ブラウザ自動化とWebスクレイピング。Playwrightベースの安全な実行環境。"
         testCases={testCases}
         strandsFeatures={[
-          "クラウドブラウザ環境",
-          "セッション永続化",
-          "ヘッドレス/ヘッドフル両対応",
-          "認証セッション管理",
+          "AgentCore Browser統合",
+          "自動スクリーンショット",
+          "DOM操作",
+          "JavaScript実行",
         ]}
         langchainFeatures={[
-          "Playwright統合",
-          "Browser Use",
-          "Puppeteer対応",
-          "カスタムブラウザツール",
+          "Playwright Tool",
+          "Browser Use Agent",
+          "BeautifulSoup統合",
+          "Selenium対応",
         ]}
         strandsExample={`from strands import Agent
-from strands.tools import Browser
+from strands.tools import browser
 
-browser = Browser(
-    headless=True,
-    session_persist=True
-)
 agent = Agent(
     model=model,
     tools=[browser]
-)`}
-        langchainExample={`from browser_use import Agent as BrowserAgent
-from langchain_anthropic import ChatAnthropic
+)
 
-agent = BrowserAgent(
-    task="Navigate to Google",
-    llm=ChatAnthropic()
+# Web検索を含むタスク
+response = agent(
+    "example.comにアクセスして内容を要約して"
 )`}
+        langchainExample={`from playwright.async_api import async_playwright
+
+async def browse(url: str):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
+        await page.goto(url)
+        content = await page.content()
+        await browser.close()
+        return content
+
+# Browser Use Agent
+from browser_use import Agent
+agent = Agent(task="Navigate and extract")`}
       />
     </div>
   );
 }
-

@@ -4,35 +4,40 @@ import { ServiceTest } from "@/widgets/service-test";
 
 const testCases = [
   {
-    id: "memory-short-term",
-    name: "短期メモリテスト",
-    prompt: "私は東京に住んでいます。どこに住んでいるか聞いてください。",
-    expectedBehavior: "同一セッション内で情報を記憶",
+    id: "memory-stats",
+    name: "メモリ統計取得",
+    endpoint: "/services/memory/stats",
+    method: "GET" as const,
+    expectedBehavior: "メモリ使用状況の統計を取得",
   },
   {
-    id: "memory-context-window",
-    name: "コンテキストウィンドウ",
-    prompt: "これまでの会話を要約してください。",
-    expectedBehavior: "会話履歴を正確に参照",
+    id: "memory-save",
+    name: "会話保存",
+    endpoint: "/services/memory/conversation/save",
+    method: "POST" as const,
+    body: { 
+      session_id: "test-session-123",
+      messages: [
+        { role: "user", content: "こんにちは" },
+        { role: "assistant", content: "こんにちは！何かお手伝いできますか？" }
+      ]
+    },
+    expectedBehavior: "会話履歴を保存",
   },
   {
-    id: "memory-episodic",
-    name: "エピソード記憶 (AgentCore)",
-    prompt: "前回の会話で学んだことを教えてください。",
-    expectedBehavior: "エピソードベースの学習内容を参照（AgentCore限定）",
-  },
-  {
-    id: "memory-summarization",
-    name: "メモリ要約",
-    prompt: "長い会話履歴がある場合、どのように管理していますか？",
-    expectedBehavior: "メモリ管理戦略の説明",
+    id: "memory-search",
+    name: "セマンティック検索",
+    endpoint: "/services/memory/long-term/search",
+    method: "POST" as const,
+    body: { query: "プロジェクトについて", top_k: 5 },
+    expectedBehavior: "関連する記憶を検索",
   },
 ];
 
 export default function MemoryPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
           <span>Services</span>
           <span>/</span>
@@ -43,40 +48,44 @@ export default function MemoryPage() {
 
       <ServiceTest
         serviceName="Memory"
-        serviceDescription="短期・長期メモリ管理による文脈認識機能。エピソードベース学習対応。"
+        serviceKey="memory"
+        serviceDescription="会話履歴と長期記憶を統合管理。セマンティック検索によるコンテキスト取得。"
         testCases={testCases}
         strandsFeatures={[
-          "短期メモリ（セッション内）",
-          "長期メモリ（永続化）",
-          "エピソード記憶 (Episodic)",
-          "セマンティック検索",
-          "Reflection Agent統合",
+          "AgentCore統合メモリ",
+          "自動コンテキスト管理",
+          "セッションベース永続化",
+          "ベクトル検索対応",
         ]}
         langchainFeatures={[
-          "LangGraph Checkpointer",
-          "カスタムメモリクラス",
           "ConversationBufferMemory",
-          "VectorStoreメモリ",
+          "VectorStoreRetrieverMemory",
+          "FAISS/Pinecone統合",
+          "カスタムメモリクラス",
         ]}
-        strandsExample={`from strands import Agent
-from strands.memory import Memory
+        strandsExample={`# AgentCore Memory
+from strands import Agent
 
-memory = Memory(
-    episodic=True,
-    semantic_search=True
-)
 agent = Agent(
     model=model,
-    memory=memory
-)`}
-        langchainExample={`from langgraph.checkpoint import MemorySaver
+    memory=True  # 自動メモリ管理
+)
 
-checkpointer = MemorySaver()
-graph = workflow.compile(
-    checkpointer=checkpointer
-)`}
+# 会話コンテキストが自動保持される
+response1 = agent("私の名前は田中です")
+response2 = agent("私の名前は？")`}
+        langchainExample={`from langchain.memory import ConversationBufferMemory
+from langchain_community.vectorstores import FAISS
+
+# 会話メモリ
+memory = ConversationBufferMemory(
+    return_messages=True
+)
+
+# ベクトルストア検索
+vectorstore = FAISS.from_texts(texts, embeddings)
+retriever = vectorstore.as_retriever()`}
       />
     </div>
   );
 }
-

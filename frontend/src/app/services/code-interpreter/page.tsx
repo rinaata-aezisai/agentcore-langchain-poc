@@ -4,35 +4,33 @@ import { ServiceTest } from "@/widgets/service-test";
 
 const testCases = [
   {
-    id: "code-python",
-    name: "Python実行",
-    prompt: "Pythonで1から100までの合計を計算するコードを実行してください。",
-    expectedBehavior: "Pythonコードが実行され結果が返る",
+    id: "code-env",
+    name: "環境情報取得",
+    endpoint: "/services/code-interpreter/environment",
+    method: "GET" as const,
+    expectedBehavior: "実行環境の情報を取得",
   },
   {
-    id: "code-data-analysis",
-    name: "データ分析",
-    prompt: "サンプルデータを生成して、統計分析を行ってください。",
-    expectedBehavior: "データ処理と分析結果",
+    id: "code-execute",
+    name: "Pythonコード実行",
+    endpoint: "/services/code-interpreter/execute",
+    method: "POST" as const,
+    body: { code: "print('Hello from Python!')", language: "python" },
+    expectedBehavior: "Pythonコードを安全に実行",
   },
   {
-    id: "code-visualization",
-    name: "可視化",
-    prompt: "matplotlibでグラフを作成してください。",
-    expectedBehavior: "グラフ生成（画像出力）",
-  },
-  {
-    id: "code-long-running",
-    name: "長時間実行",
-    prompt: "10秒間スリープしてから結果を返すコードを実行してください。",
-    expectedBehavior: "長時間実行のサポート確認（AgentCoreは最大8時間）",
+    id: "code-files",
+    name: "ファイル一覧",
+    endpoint: "/services/code-interpreter/files",
+    method: "GET" as const,
+    expectedBehavior: "実行環境のファイル一覧を取得",
   },
 ];
 
 export default function CodeInterpreterPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
           <span>Services</span>
           <span>/</span>
@@ -43,41 +41,50 @@ export default function CodeInterpreterPage() {
 
       <ServiceTest
         serviceName="Code Interpreter"
-        serviceDescription="コード実行用の隔離されたサンドボックス環境。最大8時間の連続実行対応。"
+        serviceKey="code-interpreter"
+        serviceDescription="安全なサンドボックス環境でのコード実行。Python, JavaScript, Bashをサポート。"
         testCases={testCases}
         strandsFeatures={[
-          "最大8時間の実行時間",
-          "完全隔離サンドボックス",
-          "ファイルシステムアクセス",
-          "パッケージインストール",
-          "永続ストレージ",
+          "AgentCore統合サンドボックス",
+          "自動リソース制限",
+          "ファイルI/O対応",
+          "マルチ言語サポート",
         ]}
         langchainFeatures={[
-          "Deep Agents Sandboxes",
-          "リモートサンドボックス",
-          "Docker/E2B統合",
-          "カスタム環境設定",
+          "PythonREPL Tool",
+          "E2B Code Interpreter",
+          "カスタム実行環境",
+          "Jupyter統合",
         ]}
         strandsExample={`from strands import Agent
-from strands.tools import CodeInterpreter
+from strands.tools import code_interpreter
 
-code_interpreter = CodeInterpreter(
-    max_runtime_hours=8,
-    packages=["pandas", "matplotlib"]
-)
 agent = Agent(
     model=model,
     tools=[code_interpreter]
+)
+
+# コード実行を含むタスク
+response = agent(
+    "フィボナッチ数列の最初の10項を計算して"
 )`}
-        langchainExample={`from langchain_community.tools import E2BDataAnalysisTool
+        langchainExample={`from langchain_experimental.utilities import PythonREPL
+from langchain.tools import Tool
 
-sandbox = E2BDataAnalysisTool()
-# またはDeep Agents Sandboxes
-from deepagents import Sandbox
+repl = PythonREPL()
 
-sandbox = Sandbox(env="python-3.11")`}
+python_tool = Tool(
+    name="python_repl",
+    description="Python code executor",
+    func=repl.run,
+)
+
+# E2B Code Interpreter
+from e2b_code_interpreter import CodeInterpreter
+
+sandbox = CodeInterpreter()
+execution = sandbox.notebook.exec_cell(code)`}
       />
     </div>
   );
 }
-

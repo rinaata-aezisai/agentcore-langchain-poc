@@ -5,34 +5,33 @@ import { ServiceTest } from "@/widgets/service-test";
 const testCases = [
   {
     id: "identity-auth",
-    name: "認証情報管理",
-    prompt: "現在のユーザー認証状態を確認してください。",
-    expectedBehavior: "認証情報の適切な管理",
+    name: "認証テスト",
+    endpoint: "/services/identity/authenticate",
+    method: "POST" as const,
+    body: { credentials: { api_key: "demo-api-key-test" } },
+    expectedBehavior: "APIキーで認証を実行",
   },
   {
-    id: "identity-oauth",
-    name: "OAuth連携",
-    prompt: "外部サービスとのOAuth認証フローを説明してください。",
-    expectedBehavior: "OAuth対応の確認",
+    id: "identity-validate",
+    name: "トークン検証",
+    endpoint: "/services/identity/validate",
+    method: "POST" as const,
+    body: { token: "test-token-123" },
+    expectedBehavior: "トークンの有効性を検証",
   },
   {
-    id: "identity-role",
-    name: "ロールベースアクセス",
-    prompt: "ユーザーロールに基づいたアクセス制御を行ってください。",
-    expectedBehavior: "RBAC実装の確認",
-  },
-  {
-    id: "identity-token",
-    name: "トークン管理",
-    prompt: "セッショントークンの有効期限を確認してください。",
-    expectedBehavior: "トークンライフサイクル管理",
+    id: "identity-permissions",
+    name: "権限一覧取得",
+    endpoint: "/services/identity/permissions/test-identity",
+    method: "GET" as const,
+    expectedBehavior: "アイデンティティの権限一覧を取得",
   },
 ];
 
 export default function IdentityPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
           <span>Services</span>
           <span>/</span>
@@ -43,40 +42,51 @@ export default function IdentityPage() {
 
       <ServiceTest
         serviceName="Identity"
-        serviceDescription="エージェント用のアイデンティティ・アクセス管理。OAuth、RBAC対応。"
+        serviceKey="identity"
+        serviceDescription="エージェント認証・認可管理。トークン発行、権限チェック、セッション管理。"
         testCases={testCases}
         strandsFeatures={[
-          "AWS IAM統合",
-          "OAuth 2.0サポート",
-          "エージェント間認証",
-          "動的クレデンシャル管理",
+          "AgentCore Identity統合",
+          "AWS IAM連携",
+          "自動トークン管理",
+          "クロスアカウントアクセス",
         ]}
         langchainFeatures={[
-          "カスタム実装が必要",
-          "外部認証サービス連携",
-          "ミドルウェアでの実装",
+          "カスタム認証実装",
+          "JWT/OAuth2対応",
+          "AWS Cognito統合",
+          "柔軟なプロバイダー",
         ]}
-        strandsExample={`from strands.identity import Identity
+        strandsExample={`# AgentCore Identity
+# AWS IAMベースの認証が自動適用
 
-identity = Identity(
-    oauth_provider="cognito",
-    scopes=["read", "write"]
-)
-agent = Agent(
-    model=model,
-    identity=identity
+# Bedrock Agent呼び出し時は
+# IAMロールで認証
+import boto3
+
+client = boto3.client('bedrock-agent-runtime')
+response = client.invoke_agent(
+    agentId='<agent-id>',
+    sessionId='<session-id>',
 )`}
-        langchainExample={`# LangChainでは標準機能なし
-# カスタム実装が必要
+        langchainExample={`import jwt
 
-class AuthMiddleware:
-    def __init__(self, auth_service):
-        self.auth = auth_service
-    
-    async def authenticate(self, request):
-        return await self.auth.verify(request.token)`}
+# JWT認証
+def authenticate(token: str):
+    payload = jwt.decode(
+        token,
+        SECRET_KEY,
+        algorithms=["HS256"]
+    )
+    return payload
+
+# AWS Cognito統合
+from langchain.auth import CognitoAuth
+
+auth = CognitoAuth(
+    user_pool_id="us-east-1_xxx"
+)`}
       />
     </div>
   );
 }
-

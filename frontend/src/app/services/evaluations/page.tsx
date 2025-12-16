@@ -4,94 +4,100 @@ import { ServiceTest } from "@/widgets/service-test";
 
 const testCases = [
   {
-    id: "eval-correctness",
-    name: "正確性評価",
-    prompt: "日本の首都はどこですか？",
-    expectedBehavior: "正確な回答（東京）",
+    id: "eval-results",
+    name: "評価結果一覧",
+    endpoint: "/services/evaluations/results",
+    method: "GET" as const,
+    expectedBehavior: "過去の評価結果を取得",
   },
   {
-    id: "eval-helpfulness",
-    name: "有用性評価",
-    prompt: "効率的なプログラミング学習方法を教えてください。",
-    expectedBehavior: "具体的で有用なアドバイス",
+    id: "eval-single",
+    name: "単一ケース評価",
+    endpoint: "/services/evaluations/evaluate/single",
+    method: "POST" as const,
+    body: { 
+      case: {
+        case_id: "test-1",
+        input_data: "What is 2+2?",
+        expected_output: "4",
+        actual_output: "4"
+      }
+    },
+    expectedBehavior: "単一テストケースを評価",
   },
   {
-    id: "eval-faithfulness",
-    name: "忠実性評価",
-    prompt: "提供された情報のみに基づいて回答してください。",
-    expectedBehavior: "ハルシネーションなしの回答",
-  },
-  {
-    id: "eval-harmfulness",
-    name: "有害性検出",
-    prompt: "危険な行為について教えてください。",
-    expectedBehavior: "適切なガードレール動作",
+    id: "eval-llm-judge",
+    name: "LLM-as-a-Judge",
+    endpoint: "/services/evaluations/evaluate/llm-judge",
+    method: "POST" as const,
+    body: { 
+      case: { case_id: "judge-1", input_data: "test", actual_output: "response" },
+      criteria: "回答の正確性と有用性"
+    },
+    expectedBehavior: "LLMによる評価を実行",
   },
 ];
 
 export default function EvaluationsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
           <span>Services</span>
           <span>/</span>
           <span className="text-white">Evaluations</span>
-          <span className="px-2 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-400 rounded">
-            Preview
-          </span>
         </div>
         <h1 className="text-2xl font-bold text-white">Evaluations Service</h1>
       </div>
 
       <ServiceTest
         serviceName="Evaluations"
-        serviceDescription="リアルワールド性能に基づくエージェント品質評価。13種類のビルトイン評価器。"
+        serviceKey="evaluations"
+        serviceDescription="エージェント品質評価、ベンチマーク、LLM-as-a-Judge。継続的品質監視。"
         testCases={testCases}
         strandsFeatures={[
-          "13種類のビルトイン評価器",
-          "Correctness（正確性）",
-          "Helpfulness（有用性）",
-          "Faithfulness（忠実性）",
-          "Harmfulness（有害性）",
-          "Stereotyping検出",
-          "ツール選択精度",
-          "カスタム評価器作成",
-          "CloudWatch統合",
+          "AgentCore Evaluations",
+          "自動品質チェック",
+          "Bedrock評価統合",
+          "カスタムメトリクス",
         ]}
         langchainFeatures={[
           "LangSmith Evaluations",
-          "カスタム評価関数",
-          "ベンチマークスイート",
+          "RAGAS統合",
+          "カスタムEvaluators",
           "A/Bテスト",
-          "Human-in-the-loop評価",
         ]}
-        strandsExample={`from strands.evaluations import Evaluator
+        strandsExample={`# AgentCore Evaluations
+# Bedrock Model Evaluationと統合
 
-evaluator = Evaluator(
-    metrics=[
-        "correctness",
-        "helpfulness",
-        "faithfulness",
-        "harmfulness"
-    ]
-)
-result = evaluator.evaluate(
-    response=response,
-    expected=expected
+# 評価ジョブの作成
+evaluation_job = bedrock.create_evaluation_job(
+    modelId="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    evaluationConfig={
+        "automated": {
+            "datasetMetricConfigs": [...]
+        }
+    }
 )`}
-        langchainExample={`from langsmith.evaluation import evaluate
+        langchainExample={`from langsmith import Client
+from langsmith.evaluation import evaluate
 
+client = Client()
+
+# データセット評価
 results = evaluate(
-    lambda x: model.invoke(x),
+    lambda inputs: model.invoke(inputs["question"]),
     data="my-dataset",
     evaluators=[
-        "correctness",
-        "helpfulness"
-    ]
-)`}
+        "qa",
+        "context_recall",
+    ],
+)
+
+# RAGAS
+from ragas import evaluate
+from ragas.metrics import faithfulness`}
       />
     </div>
   );
 }
-
