@@ -5,7 +5,7 @@
 
 from typing import Any
 
-from ulid import ULID
+import ulid
 
 from application.commands import (
     EndSessionCommand,
@@ -67,8 +67,7 @@ class SendMessageHandler:
             raise SessionNotFoundError(command.session_id)
 
         message = Message(
-            id=MessageId(str(ULID())),
-            session_id=session.id,
+            id=MessageId(ulid.new().str),
             role="user",
             content=Content(text=command.content),
         )
@@ -145,8 +144,7 @@ class ExecuteAgentHandler:
 
         # レスポンスをメッセージとして追加
         assistant_message = Message(
-            id=MessageId(str(ULID())),
-            session_id=session.id,
+            id=MessageId(ulid.new().str),
             role="assistant",
             content=Content(text=response.content),
         )
@@ -171,4 +169,3 @@ class SessionNotFoundError(Exception):
     def __init__(self, session_id: str):
         super().__init__(f"Session not found: {session_id}")
         self.session_id = session_id
-

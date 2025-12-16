@@ -1,15 +1,20 @@
 """Message Entity"""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
-from ulid import ULID
+import ulid
 
 from domain.value_objects.content import Content
 from domain.value_objects.ids import MessageId
 
 Role = Literal["user", "assistant", "system"]
+
+
+def _now() -> datetime:
+    """タイムゾーン対応の現在時刻を取得"""
+    return datetime.now(UTC)
 
 
 @dataclass
@@ -28,11 +33,16 @@ class Message:
     content: Content
     tool_calls: list[ToolCall] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=_now)
 
     @classmethod
     def user(cls, content: Content, metadata: dict[str, Any] | None = None) -> "Message":
-        return cls(id=MessageId(str(ULID())), role="user", content=content, metadata=metadata or {})
+        return cls(
+            id=MessageId(ulid.new().str),
+            role="user",
+            content=content,
+            metadata=metadata or {},
+        )
 
     @classmethod
     def assistant(
@@ -40,12 +50,13 @@ class Message:
         metadata: dict[str, Any] | None = None,
     ) -> "Message":
         return cls(
-            id=MessageId(str(ULID())), role="assistant", content=content,
-            tool_calls=tool_calls or [], metadata=metadata or {},
+            id=MessageId(ulid.new().str),
+            role="assistant",
+            content=content,
+            tool_calls=tool_calls or [],
+            metadata=metadata or {},
         )
 
     @classmethod
     def system(cls, content: Content) -> "Message":
-        return cls(id=MessageId(str(ULID())), role="system", content=content)
-
-
+        return cls(id=MessageId(ulid.new().str), role="system", content=content)

@@ -1,6 +1,6 @@
 """Event Store Unit Tests"""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 
@@ -9,6 +9,11 @@ from infrastructure.persistence.event_store import (
     InMemoryEventStore,
     StoredEvent,
 )
+
+
+def _now_iso() -> str:
+    """タイムゾーン対応の現在時刻をISO形式で取得"""
+    return datetime.now(UTC).isoformat()
 
 
 @pytest.fixture
@@ -29,7 +34,7 @@ def sample_events():
                 "user_id": "user-001",
             },
             version=1,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=_now_iso(),
         ),
         StoredEvent(
             aggregate_id="session-001",
@@ -42,7 +47,7 @@ def sample_events():
                 "content": "Hello",
             },
             version=2,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=_now_iso(),
         ),
     ]
 
@@ -95,9 +100,8 @@ class TestInMemoryEventStore:
             event_type="SessionEnded",
             event_data={"session_id": "session-001"},
             version=2,  # 既に存在するバージョン
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=_now_iso(),
         )
 
         with pytest.raises(ConcurrencyError):
             await event_store.append("session-001", [conflicting_event])
-

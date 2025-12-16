@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from ulid import ULID
+import ulid
 
 from domain.events.session_events import MessageAdded, SessionEnded, SessionStarted
 from domain.value_objects.ids import AgentId, SessionId, UserId
@@ -21,6 +21,11 @@ class SessionState(str, Enum):
     ENDED = "ended"
 
 
+def _now() -> datetime:
+    """タイムゾーン対応の現在時刻を取得"""
+    return datetime.now(UTC)
+
+
 @dataclass
 class Session:
     """セッションアグリゲート"""
@@ -29,8 +34,8 @@ class Session:
     agent_id: AgentId
     user_id: UserId
     state: SessionState = SessionState.ACTIVE
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=_now)
+    updated_at: datetime = field(default_factory=_now)
     _messages: list[Message] = field(default_factory=list)
     _domain_events: list = field(default_factory=list)
     _version: int = 0
@@ -38,8 +43,8 @@ class Session:
     @classmethod
     def start(cls, agent_id: AgentId, user_id: UserId) -> Session:
         """新しいセッションを開始"""
-        session_id = SessionId(str(ULID()))
-        now = datetime.utcnow()
+        session_id = SessionId(ulid.new().str)
+        now = _now()
         session = cls(
             id=session_id, agent_id=agent_id, user_id=user_id,
             state=SessionState.ACTIVE, created_at=now, updated_at=now,
@@ -54,7 +59,7 @@ class Session:
         """メッセージを追加"""
         self._ensure_active()
         self._messages.append(message)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = _now()
         self._add_event(MessageAdded(
             session_id=str(self.id), message_id=str(message.id),
             role=message.role, content=message.content.text,
@@ -65,7 +70,7 @@ class Session:
         """セッションを終了"""
         self._ensure_active()
         self.state = SessionState.ENDED
-        self.updated_at = datetime.utcnow()
+        self.updated_at = _now()
         self._add_event(SessionEnded(
             session_id=str(self.id), reason=reason,
             timestamp=self.updated_at.isoformat(),
@@ -101,5 +106,3 @@ class SessionNotActiveError(Exception):
     def __init__(self, session_id: SessionId):
         super().__init__(f"Session {session_id} is not active")
         self.session_id = session_id
-
-
