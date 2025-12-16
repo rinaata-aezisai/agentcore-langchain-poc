@@ -1,0 +1,61 @@
+{
+  "timestamp": "2025-12-16T05:02:49.500022+00:00",
+  "results": [
+    {
+      "component": "strands-agents",
+      "check_name": "core_imports",
+      "status": "pass",
+      "message": "Agent, BedrockModel インポート成功",
+      "details": null
+    },
+    {
+      "component": "langchain",
+      "check_name": "core_imports",
+      "status": "pass",
+      "message": "ChatBedrock, LangGraph インポート成功",
+      "details": null
+    },
+    {
+      "component": "strands-agents",
+      "check_name": "adapter_implementation",
+      "status": "pass",
+      "message": "StrandsAgentAdapter 実装確認",
+      "details": null
+    },
+    {
+      "component": "langchain",
+      "check_name": "adapter_implementation",
+      "status": "pass",
+      "message": "LangChainAgentAdapter 実装確認",
+      "details": null
+    },
+    {
+      "component": "backend",
+      "check_name": "core_domain",
+      "status": "pass",
+      "message": "ドメインモデル・ポート定義確認",
+      "details": null
+    },
+    {
+      "component": "strands-agents",
+      "check_name": "port_implementation",
+      "status": "pass",
+      "message": "AgentPort インターフェース実装確認",
+      "details": null
+    },
+    {
+      "component": "langchain",
+      "check_name": "port_implementation",
+      "status": "pass",
+      "message": "AgentPort インターフェース実装確認",
+      "details": null
+    },
+    {
+      "component": "aws",
+      "check_name": "bedrock_connection",
+      "status": "skip",
+      "message": "AWS認証情報未設定のためスキップ",
+      "details": null
+    }
+  ]
+}

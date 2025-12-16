@@ -10,31 +10,30 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from application.handlers.command_handlers import (
+    EndSessionHandler,
+    ExecuteAgentHandler,
+    SendMessageHandler,
+    StartSessionHandler,
+)
+from application.handlers.query_handlers import (
+    GetActiveSessionsHandler,
+    GetSessionHandler,
+    GetSessionMessagesHandler,
+)
+from application.ports.agent_port import AgentPort
+from domain.repositories.session_repository import SessionRepository
+from infrastructure.messaging.event_publisher import (
+    EventBridgePublisher,
+    EventPublisher,
+    InMemoryEventPublisher,
+)
 from infrastructure.persistence.event_store import (
-    EventStore,
     DynamoDBEventStore,
+    EventStore,
     InMemoryEventStore,
 )
 from infrastructure.persistence.session_repository_impl import EventSourcedSessionRepository
-from infrastructure.messaging.event_publisher import (
-    EventPublisher,
-    EventBridgePublisher,
-    InMemoryEventPublisher,
-)
-from domain.repositories.session_repository import SessionRepository
-from application.ports.agent_port import AgentPort
-from application.handlers.command_handlers import (
-    StartSessionHandler,
-    SendMessageHandler,
-    EndSessionHandler,
-    ExecuteAgentHandler,
-)
-from application.handlers.query_handlers import (
-    GetSessionHandler,
-    GetSessionMessagesHandler,
-    GetActiveSessionsHandler,
-)
-
 
 # ===========================================
 # Configuration
@@ -55,7 +54,7 @@ class Settings:
         self.langfuse_enabled = os.getenv("LANGFUSE_ENABLED", "false").lower() == "true"
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()
 
@@ -177,6 +176,10 @@ SendMessageHandlerDep = Annotated[SendMessageHandler, Depends(get_send_message_h
 EndSessionHandlerDep = Annotated[EndSessionHandler, Depends(get_end_session_handler)]
 ExecuteAgentHandlerDep = Annotated[ExecuteAgentHandler, Depends(get_execute_agent_handler)]
 GetSessionHandlerDep = Annotated[GetSessionHandler, Depends(get_session_query_handler)]
-GetSessionMessagesHandlerDep = Annotated[GetSessionMessagesHandler, Depends(get_session_messages_handler)]
-GetActiveSessionsHandlerDep = Annotated[GetActiveSessionsHandler, Depends(get_active_sessions_handler)]
+GetSessionMessagesHandlerDep = Annotated[
+    GetSessionMessagesHandler, Depends(get_session_messages_handler)
+]
+GetActiveSessionsHandlerDep = Annotated[
+    GetActiveSessionsHandler, Depends(get_active_sessions_handler)
+]
 

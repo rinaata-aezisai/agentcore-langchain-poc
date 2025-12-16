@@ -4,25 +4,20 @@ LangChain + LangGraph の実装。
 backendのAgentPortを実装し、DIで注入可能。
 """
 
-import sys
-from pathlib import Path
-from typing import Any, Annotated
 import os
-
-# backendモジュールをパスに追加
-backend_path = Path(__file__).parent.parent.parent.parent / "backend" / "src"
-sys.path.insert(0, str(backend_path))
+from typing import Annotated, Any
 
 from langchain_anthropic import ChatAnthropic
 from langchain_aws import ChatBedrock
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
-from domain.entities.message import Message
 from application.ports.agent_port import AgentPort, AgentResponse
+from domain.entities.message import Message
+
 from .tools import AVAILABLE_TOOLS
 
 
@@ -133,8 +128,13 @@ class LangChainAgentAdapter(AgentPort):
         final_message = result["messages"][-1]
         tool_calls = self._extract_tool_calls(result["messages"])
 
+        content = (
+            final_message.content
+            if hasattr(final_message, "content")
+            else str(final_message)
+        )
         return AgentResponse(
-            content=final_message.content if hasattr(final_message, "content") else str(final_message),
+            content=content,
             tool_calls=tool_calls,
             metadata={
                 "provider": "langchain",
@@ -224,10 +224,16 @@ def create_langchain_adapter(
     langfuse_enabled: bool | None = None,
 ) -> LangChainAgentAdapter:
     """LangChainAgentAdapterのファクトリ関数"""
+    default_model_id = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+    resolved_langfuse = (
+        langfuse_enabled
+        if langfuse_enabled is not None
+        else os.getenv("LANGFUSE_ENABLED", "false").lower() == "true"
+    )
     return LangChainAgentAdapter(
         model_provider=model_provider or os.getenv("MODEL_PROVIDER", "bedrock"),
-        model_id=model_id or os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0"),
+        model_id=model_id or os.getenv("BEDROCK_MODEL_ID", default_model_id),
         region=region or os.getenv("AWS_REGION", "us-east-1"),
         system_prompt=system_prompt,
-        langfuse_enabled=langfuse_enabled if langfuse_enabled is not None else os.getenv("LANGFUSE_ENABLED", "false").lower() == "true",
+        langfuse_enabled=resolved_langfuse,
     )

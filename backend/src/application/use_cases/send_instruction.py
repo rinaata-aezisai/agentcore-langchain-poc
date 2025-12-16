@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from application.ports.agent_port import AgentPort
 from domain.entities.message import Message, ToolCall
 from domain.repositories.session_repository import SessionRepository
 from domain.value_objects.content import Content
 from domain.value_objects.ids import SessionId
-from application.ports.agent_port import AgentPort
 
 
 @dataclass
@@ -64,7 +64,11 @@ class SendInstructionUseCase:
         return SendInstructionOutput(
             response_id=str(assistant_message.id),
             content=agent_response.content,
-            tool_calls=[{"tool_id": tc.tool_id, "result": tc.result} for tc in tool_calls] if tool_calls else None,
+            tool_calls=(
+                [{"tool_id": tc.tool_id, "result": tc.result} for tc in tool_calls]
+                if tool_calls
+                else None
+            ),
             latency_ms=latency_ms,
         )
 

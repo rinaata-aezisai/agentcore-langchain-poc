@@ -4,16 +4,21 @@
 イベントストアからイベントを再生してアグリゲートを復元。
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
-from domain.entities.session import Session, SessionState
 from domain.entities.message import Message
+from domain.entities.session import Session, SessionState
+from domain.events.session_events import MessageAdded, SessionEnded, SessionStarted
 from domain.repositories.session_repository import SessionRepository
-from domain.events.session_events import SessionStarted, SessionEnded, MessageAdded
-from domain.value_objects.ids import SessionId, AgentId, UserId, MessageId
 from domain.value_objects.content import Content
+from domain.value_objects.ids import AgentId, MessageId, SessionId, UserId
 from infrastructure.persistence.event_store import EventStore, StoredEvent
+
+
+def _now_iso() -> str:
+    """タイムゾーン対応の現在時刻をISO形式で取得"""
+    return datetime.now(UTC).isoformat()
 
 
 class EventSourcedSessionRepository(SessionRepository):
@@ -39,7 +44,7 @@ class EventSourcedSessionRepository(SessionRepository):
                     event_type=type(event).__name__,
                     event_data=self._event_to_dict(event),
                     version=base_version + i + 1,
-                    timestamp=datetime.utcnow().isoformat(),
+                    timestamp=_now_iso(),
                 )
             )
 
@@ -54,8 +59,8 @@ class EventSourcedSessionRepository(SessionRepository):
 
         return self._rebuild_from_events(events)
 
-    async def find_active_by_user(self, user_id: UserId) -> list[Session]:
-        """ユーザーのアクティブセッションを検索"""
+    async def find_by_user_id(self, user_id: UserId, limit: int = 20) -> list[Session]:
+        """ユーザーIDでセッションを検索"""
         # 注意: 実際のプロダクションでは読み取りモデル（CQRS）を使用すべき
         # ここでは簡易実装としてSessionStartedイベントから検索
         started_events = await self._event_store.get_events_by_type("SessionStarted")
@@ -66,8 +71,10 @@ class EventSourcedSessionRepository(SessionRepository):
                 session = await self.find_by_id(
                     SessionId(event.event_data["session_id"])
                 )
-                if session and session.is_active:
+                if session:
                     sessions.append(session)
+                    if len(sessions) >= limit:
+                        break
 
         return sessions
 
@@ -110,13 +117,11 @@ class EventSourcedSessionRepository(SessionRepository):
         """MessageAddedイベントを適用"""
         message = Message(
             id=MessageId(data["message_id"]),
-            session_id=session.id,
             role=data["role"],
             content=Content(text=data["content"]),
-            created_at=datetime.fromisoformat(data["timestamp"]),
         )
         session._messages.append(message)
-        session.updated_at = message.created_at
+        session.updated_at = datetime.fromisoformat(data["timestamp"])
 
     def _apply_session_ended(self, session: Session, data: dict[str, Any]) -> None:
         """SessionEndedイベントを適用"""
@@ -147,4 +152,3 @@ class EventSourcedSessionRepository(SessionRepository):
                 "timestamp": event.timestamp,
             }
         return {}
-

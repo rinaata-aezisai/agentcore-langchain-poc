@@ -1,6 +1,7 @@
 """Session Repository Interface (Port)"""
 
 from abc import ABC, abstractmethod
+
 from domain.entities.session import Session
 from domain.value_objects.ids import SessionId, UserId
 

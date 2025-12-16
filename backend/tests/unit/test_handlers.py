@@ -1,19 +1,19 @@
 """Command/Query Handlers Unit Tests"""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime
+from unittest.mock import AsyncMock
 
-from domain.entities.session import Session
-from domain.value_objects.ids import SessionId, AgentId, UserId
-from application.commands import StartSessionCommand, SendMessageCommand
-from application.queries import GetSessionQuery
+import pytest
+
+from application.commands import SendMessageCommand, StartSessionCommand
 from application.handlers.command_handlers import (
-    StartSessionHandler,
     SendMessageHandler,
     SessionNotFoundError,
+    StartSessionHandler,
 )
 from application.handlers.query_handlers import GetSessionHandler
+from application.queries import GetSessionQuery
+from domain.entities.session import Session
+from domain.value_objects.ids import AgentId, UserId
 
 
 @pytest.fixture

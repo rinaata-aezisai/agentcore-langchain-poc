@@ -5,20 +5,21 @@
 
 from typing import Any
 
-from domain.entities.session import Session
-from domain.entities.message import Message
-from domain.repositories.session_repository import SessionRepository
-from domain.value_objects.ids import SessionId, AgentId, UserId, MessageId
-from domain.value_objects.content import Content
+import ulid
+
 from application.commands import (
-    StartSessionCommand,
-    SendMessageCommand,
     EndSessionCommand,
     ExecuteAgentCommand,
+    SendMessageCommand,
+    StartSessionCommand,
 )
 from application.ports.agent_port import AgentPort
+from domain.entities.message import Message
+from domain.entities.session import Session
+from domain.repositories.session_repository import SessionRepository
+from domain.value_objects.content import Content
+from domain.value_objects.ids import AgentId, MessageId, SessionId, UserId
 from infrastructure.messaging.event_publisher import EventPublisher
-from ulid import ULID
 
 
 class StartSessionHandler:
@@ -66,8 +67,7 @@ class SendMessageHandler:
             raise SessionNotFoundError(command.session_id)
 
         message = Message(
-            id=MessageId(str(ULID())),
-            session_id=session.id,
+            id=MessageId(ulid.new().str),
             role="user",
             content=Content(text=command.content),
         )
@@ -144,8 +144,7 @@ class ExecuteAgentHandler:
 
         # レスポンスをメッセージとして追加
         assistant_message = Message(
-            id=MessageId(str(ULID())),
-            session_id=session.id,
+            id=MessageId(ulid.new().str),
             role="assistant",
             content=Content(text=response.content),
         )
@@ -170,4 +169,3 @@ class SessionNotFoundError(Exception):
     def __init__(self, session_id: str):
         super().__init__(f"Session not found: {session_id}")
         self.session_id = session_id
-

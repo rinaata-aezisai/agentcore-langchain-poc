@@ -4,18 +4,15 @@
 """
 
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any
 
+from application.queries import (
+    GetActiveSessionsQuery,
+    GetSessionMessagesQuery,
+    GetSessionQuery,
+)
 from domain.entities.session import Session
 from domain.repositories.session_repository import SessionRepository
 from domain.value_objects.ids import SessionId, UserId
-from application.queries import (
-    GetSessionQuery,
-    GetSessionMessagesQuery,
-    GetActiveSessionsQuery,
-    GetSessionHistoryQuery,
-)
 
 
 @dataclass
