@@ -1,35 +1,39 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { MessageItem, MessageSkeleton } from "@/entities/message/ui/message-item";
 import { ChatInput } from "@/features/send-message/ui/chat-input";
-import { sessionApi, agentApi, Message } from "@/shared/api/client";
+import {
+  authenticatedSessionApi,
+  Message,
+} from "@/shared/api/amplify-client";
 import { cn } from "@/shared/lib/utils";
 
 interface ChatMessage extends Message {
   latencyMs?: number;
 }
 
+type AgentType = "strands" | "langchain";
+
 export function ChatWindow() {
-  const queryClient = useQueryClient();
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [agentType, setAgentType] = useState<AgentType>("strands");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // エージェント情報を取得
-  const { data: agentInfo } = useQuery({
-    queryKey: ["agentInfo"],
-    queryFn: agentApi.getInfo,
-    retry: false,
-  });
-
   // セッション作成
   const createSession = useMutation({
-    mutationFn: () => sessionApi.create({ user_id: "demo-user" }),
+    mutationFn: () =>
+      authenticatedSessionApi.create({
+        agent_type: agentType,
+      }),
     onSuccess: (data) => {
       setSessionId(data.session_id);
       setMessages([]);
+    },
+    onError: (error) => {
+      console.error("Failed to create session:", error);
     },
   });
 
@@ -37,7 +41,7 @@ export function ChatWindow() {
   const sendMessage = useMutation({
     mutationFn: (instruction: string) => {
       if (!sessionId) throw new Error("No session");
-      return sessionApi.sendMessage(sessionId, { instruction });
+      return authenticatedSessionApi.sendMessage(sessionId, { instruction });
     },
     onMutate: (instruction) => {
       // Optimistic update - ユーザーメッセージを即座に表示
@@ -72,6 +76,7 @@ export function ChatWindow() {
     if (!sessionId) {
       createSession.mutate();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // メッセージ追加時に自動スクロール
@@ -89,31 +94,67 @@ export function ChatWindow() {
     createSession.mutate();
   };
 
+  const handleAgentTypeChange = (newType: AgentType) => {
+    if (newType !== agentType) {
+      setAgentType(newType);
+      setSessionId(null);
+      setMessages([]);
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-200px)] max-w-4xl mx-auto bg-slate-800/30 rounded-2xl border border-slate-700 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-800/50">
         <div>
-          <h2 className="text-lg font-semibold text-white">
-            AI Assistant
-          </h2>
-          {agentInfo && (
-            <p className="text-sm text-slate-400">
-              {agentInfo.agent_type === "langchain" ? "LangChain + LangGraph" : "Strands Agents"} 
-              <span className="mx-2">•</span>
-              <span className="text-xs">{agentInfo.model_id.split("/").pop()}</span>
-            </p>
-          )}
+          <h2 className="text-lg font-semibold text-white">AI Assistant</h2>
+          <p className="text-sm text-slate-400">
+            {agentType === "langchain"
+              ? "LangChain + LangGraph"
+              : "Strands Agents (AgentCore)"}
+            <span className="mx-2">•</span>
+            <span className="text-xs">claude-3-haiku</span>
+          </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Agent Type Selector */}
+          <div className="flex bg-slate-700/50 rounded-lg p-1">
+            <button
+              onClick={() => handleAgentTypeChange("strands")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded transition-colors",
+                agentType === "strands"
+                  ? "bg-blue-600 text-white"
+                  : "text-slate-400 hover:text-white"
+              )}
+            >
+              Strands
+            </button>
+            <button
+              onClick={() => handleAgentTypeChange("langchain")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded transition-colors",
+                agentType === "langchain"
+                  ? "bg-purple-600 text-white"
+                  : "text-slate-400 hover:text-white"
+              )}
+            >
+              LangChain
+            </button>
+          </div>
+
           {sessionId && (
             <span className="text-xs text-slate-500 font-mono">
-              Session: {sessionId.slice(0, 8)}...
+              {sessionId.slice(0, 8)}...
             </span>
           )}
           <button
             onClick={handleNewSession}
-            className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            disabled={createSession.isPending}
+            className={cn(
+              "px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors",
+              createSession.isPending && "opacity-50 cursor-not-allowed"
+            )}
           >
             New Chat
           </button>
@@ -139,10 +180,25 @@ export function ChatWindow() {
             </svg>
             <p className="text-lg font-medium">Start a conversation</p>
             <p className="text-sm mt-1">
-              {agentInfo?.agent_type === "langchain"
+              {agentType === "langchain"
                 ? "Using LangChain + LangGraph for advanced workflows"
                 : "Using Strands Agents with AWS Bedrock"}
             </p>
+            <div className="mt-4 flex gap-2">
+              <span
+                className={cn(
+                  "px-2 py-1 rounded text-xs",
+                  agentType === "strands"
+                    ? "bg-blue-600/20 text-blue-400"
+                    : "bg-purple-600/20 text-purple-400"
+                )}
+              >
+                {agentType === "strands" ? "Strands Agents" : "LangChain"}
+              </span>
+              <span className="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300">
+                AWS Bedrock
+              </span>
+            </div>
           </div>
         ) : (
           <>

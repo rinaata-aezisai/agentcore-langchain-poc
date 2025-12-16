@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
+import { AuthStatus } from "@/features/auth";
 
 interface NavItem {
   href: string;
@@ -144,15 +145,23 @@ export function Sidebar() {
         </nav>
       </div>
 
-      {/* Agent Type Indicator */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700 bg-slate-800">
-        <div className="text-xs text-slate-400">
-          <span className="block mb-1">Current Agent:</span>
-          <span className="text-white font-medium">
-            {typeof window !== "undefined" && process.env.NEXT_PUBLIC_AGENT_TYPE === "langchain"
-              ? "LangChain + LangGraph"
-              : "Strands Agents"}
-          </span>
+      {/* Auth Status & Agent Type Indicator */}
+      <div className="absolute bottom-0 left-0 right-0 border-t border-slate-700 bg-slate-800">
+        {/* Auth Status */}
+        <div className="p-3 border-b border-slate-700">
+          <AuthStatus />
+        </div>
+        
+        {/* Agent Type */}
+        <div className="p-3">
+          <div className="text-xs text-slate-400">
+            <span className="block mb-1">Current Agent:</span>
+            <span className="text-white font-medium">
+              {typeof window !== "undefined" && process.env.NEXT_PUBLIC_AGENT_TYPE === "langchain"
+                ? "LangChain + LangGraph"
+                : "Strands Agents"}
+            </span>
+          </div>
         </div>
       </div>
     </aside>
