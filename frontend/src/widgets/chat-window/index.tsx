@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { MessageItem, MessageSkeleton } from "@/entities/message/ui/message-item";
 import { ChatInput } from "@/features/send-message/ui/chat-input";
-import {
-  authenticatedSessionApi,
-  Message,
-} from "@/shared/api/amplify-client";
+import { authenticatedSessionApi } from "@/shared/api/amplify-client";
 import { cn } from "@/shared/lib/utils";
 
-interface ChatMessage extends Message {
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
   latencyMs?: number;
 }
 
@@ -49,7 +50,7 @@ export function ChatWindow() {
         id: `temp-${Date.now()}`,
         role: "user",
         content: instruction,
-        created_at: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMessage]);
     },
@@ -59,7 +60,7 @@ export function ChatWindow() {
         id: response.response_id,
         role: "assistant",
         content: response.content,
-        created_at: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
         latencyMs: response.latency_ms,
       };
       setMessages((prev) => [...prev, aiMessage]);
