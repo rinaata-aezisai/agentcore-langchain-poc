@@ -1,9 +1,11 @@
 """FastAPI Main Application"""
 
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import sessions, agents, health
+
+from api.routers import agents, health, sessions
 
 
 @asynccontextmanager

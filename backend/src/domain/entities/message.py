@@ -3,10 +3,11 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
-from ulid import ULID
-from domain.value_objects.ids import MessageId
-from domain.value_objects.content import Content
 
+from ulid import ULID
+
+from domain.value_objects.content import Content
+from domain.value_objects.ids import MessageId
 
 Role = Literal["user", "assistant", "system"]
 

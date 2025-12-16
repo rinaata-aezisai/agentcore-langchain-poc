@@ -1,15 +1,16 @@
 """Session Aggregate Root"""
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
 from ulid import ULID
-from domain.events.session_events import SessionStarted, SessionEnded, MessageAdded
-from domain.value_objects.ids import SessionId, AgentId, UserId
-from domain.value_objects.content import Content
+
+from domain.events.session_events import MessageAdded, SessionEnded, SessionStarted
+from domain.value_objects.ids import AgentId, SessionId, UserId
 
 if TYPE_CHECKING:
     from domain.entities.message import Message

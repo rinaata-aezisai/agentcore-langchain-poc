@@ -7,12 +7,12 @@
 from datetime import datetime
 from typing import Any
 
-from domain.entities.session import Session, SessionState
 from domain.entities.message import Message
+from domain.entities.session import Session, SessionState
+from domain.events.session_events import MessageAdded, SessionEnded, SessionStarted
 from domain.repositories.session_repository import SessionRepository
-from domain.events.session_events import SessionStarted, SessionEnded, MessageAdded
-from domain.value_objects.ids import SessionId, AgentId, UserId, MessageId
 from domain.value_objects.content import Content
+from domain.value_objects.ids import AgentId, MessageId, SessionId, UserId
 from infrastructure.persistence.event_store import EventStore, StoredEvent
 
 

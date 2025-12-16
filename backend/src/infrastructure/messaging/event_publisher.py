@@ -4,11 +4,12 @@
 イベント駆動アーキテクチャをサポート。
 """
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 from datetime import datetime
 from typing import Any
-import json
+
 import boto3
 
 

@@ -1,11 +1,13 @@
 """Event Store Unit Tests"""
 
-import pytest
 from datetime import datetime
+
+import pytest
+
 from infrastructure.persistence.event_store import (
+    ConcurrencyError,
     InMemoryEventStore,
     StoredEvent,
-    ConcurrencyError,
 )
 
 

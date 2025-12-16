@@ -1,18 +1,12 @@
 """Pytest Configuration and Fixtures"""
 
-import sys
-from pathlib import Path
-
-# Add src to path for imports
-src_path = Path(__file__).parent.parent / "src"
-sys.path.insert(0, str(src_path))
-
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
+
+from infrastructure.messaging.event_publisher import InMemoryEventPublisher
 from infrastructure.persistence.event_store import InMemoryEventStore
 from infrastructure.persistence.session_repository_impl import EventSourcedSessionRepository
-from infrastructure.messaging.event_publisher import InMemoryEventPublisher
 
 
 @pytest.fixture

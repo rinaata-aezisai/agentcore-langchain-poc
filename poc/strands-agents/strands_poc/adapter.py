@@ -4,21 +4,17 @@ AWS Bedrock AgentCore (Strands Agents) の実装。
 backendのAgentPortを実装し、DIで注入可能。
 """
 
-import sys
-from pathlib import Path
-from typing import Any
 import asyncio
-
-# backendモジュールをパスに追加
-backend_path = Path(__file__).parent.parent.parent.parent / "backend" / "src"
-sys.path.insert(0, str(backend_path))
+import os
+from typing import Any
 
 from strands import Agent
 from strands.models import BedrockModel
 
-from domain.entities.message import Message
 from application.ports.agent_port import AgentPort, AgentResponse
-from .tools import AVAILABLE_TOOLS, get_tool_definitions
+from domain.entities.message import Message
+
+from .tools import AVAILABLE_TOOLS
 
 
 class StrandsAgentAdapter(AgentPort):
@@ -38,9 +34,6 @@ class StrandsAgentAdapter(AgentPort):
 
     async def execute(self, context: list[Message], instruction: str) -> AgentResponse:
         """エージェントを実行（ツールなし）"""
-        # コンテキストからプロンプトを構築
-        messages = self._build_messages(context, instruction)
-
         agent = Agent(
             model=self.model,
             system_prompt=self.system_prompt,
@@ -65,7 +58,6 @@ class StrandsAgentAdapter(AgentPort):
         tools: list[dict[str, Any]] | None = None,
     ) -> AgentResponse:
         """ツール付きでエージェントを実行"""
-        # カスタムツールまたはデフォルトツールを使用
         agent_tools = tools if tools else AVAILABLE_TOOLS
 
         agent = Agent(
@@ -74,7 +66,6 @@ class StrandsAgentAdapter(AgentPort):
             tools=agent_tools,
         )
 
-        # Strandsは同期APIなのでrun_in_executorで実行
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(None, lambda: agent(instruction))
 
@@ -88,27 +79,8 @@ class StrandsAgentAdapter(AgentPort):
             },
         )
 
-    def _build_messages(
-        self, context: list[Message], instruction: str
-    ) -> list[dict[str, str]]:
-        """コンテキストからメッセージリストを構築"""
-        messages = []
-
-        for msg in context:
-            messages.append(
-                {
-                    "role": msg.role,
-                    "content": msg.content.text,
-                }
-            )
-
-        messages.append({"role": "user", "content": instruction})
-        return messages
-
     def _extract_tool_calls(self, response) -> list[dict[str, Any]] | None:
         """レスポンスからツール呼び出し情報を抽出"""
-        # Strandsのレスポンス形式に応じて実装
-        # 現時点では簡易実装
         if hasattr(response, "tool_calls") and response.tool_calls:
             return [
                 {
@@ -138,10 +110,9 @@ def create_strands_adapter(
     system_prompt: str | None = None,
 ) -> StrandsAgentAdapter:
     """StrandsAgentAdapterのファクトリ関数"""
-    import os
-
+    default_model_id = "anthropic.claude-3-5-sonnet-20241022-v2:0"
     return StrandsAgentAdapter(
-        model_id=model_id or os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0"),
+        model_id=model_id or os.getenv("BEDROCK_MODEL_ID", default_model_id),
         region=region or os.getenv("AWS_REGION", "us-east-1"),
         system_prompt=system_prompt,
     )

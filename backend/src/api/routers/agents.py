@@ -1,11 +1,11 @@
 """Agents Router - エージェント情報・比較API"""
 
-from fastapi import APIRouter, status
-from pydantic import BaseModel, Field
 from typing import Any
 
-from api.dependencies import SettingsDep
+from fastapi import APIRouter
+from pydantic import BaseModel, Field
 
+from api.dependencies import SettingsDep
 
 router = APIRouter()
 

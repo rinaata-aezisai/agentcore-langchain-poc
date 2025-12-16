@@ -4,13 +4,12 @@
 DynamoDBを使用し、イベントの永続化と再生をサポート。
 """
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Generic, TypeVar
-import json
+from typing import Any, TypeVar
+
 import boto3
-from botocore.exceptions import ClientError
 
 T = TypeVar("T")
 

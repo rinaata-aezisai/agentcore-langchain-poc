@@ -1,37 +1,37 @@
 """Sessions Router - CQRS統合済み"""
 
 from fastapi import APIRouter, HTTPException, status
+
+from api.dependencies import (
+    EndSessionHandlerDep,
+    ExecuteAgentHandlerDep,
+    GetActiveSessionsHandlerDep,
+    GetSessionHandlerDep,
+    GetSessionMessagesHandlerDep,
+    SendMessageHandlerDep,
+    StartSessionHandlerDep,
+)
 from api.schemas.session import (
     CreateSessionRequest,
     CreateSessionResponse,
+    MessageListResponse,
     SendInstructionRequest,
     SendInstructionResponse,
-    SessionResponse,
     SessionListResponse,
-    MessageListResponse,
-)
-from api.dependencies import (
-    StartSessionHandlerDep,
-    SendMessageHandlerDep,
-    EndSessionHandlerDep,
-    ExecuteAgentHandlerDep,
-    GetSessionHandlerDep,
-    GetSessionMessagesHandlerDep,
-    GetActiveSessionsHandlerDep,
+    SessionResponse,
 )
 from application.commands import (
-    StartSessionCommand,
-    SendMessageCommand,
     EndSessionCommand,
     ExecuteAgentCommand,
-)
-from application.queries import (
-    GetSessionQuery,
-    GetSessionMessagesQuery,
-    GetActiveSessionsQuery,
+    SendMessageCommand,
+    StartSessionCommand,
 )
 from application.handlers.command_handlers import SessionNotFoundError
-
+from application.queries import (
+    GetActiveSessionsQuery,
+    GetSessionMessagesQuery,
+    GetSessionQuery,
+)
 
 router = APIRouter()
 
@@ -169,11 +169,11 @@ async def send_message(
             metadata=result.get("metadata"),
         )
 
-    except SessionNotFoundError:
+    except SessionNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Session {session_id} not found",
-        )
+        ) from e
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -185,8 +185,8 @@ async def end_session(
     try:
         command = EndSessionCommand(session_id=session_id)
         await handler.handle(command)
-    except SessionNotFoundError:
+    except SessionNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Session {session_id} not found",
-        )
+        ) from e

@@ -1,11 +1,12 @@
 """Session Entity Tests"""
 
 import pytest
-from domain.entities.session import Session, SessionState, SessionNotActiveError
+
 from domain.entities.message import Message
-from domain.value_objects.ids import AgentId, UserId
+from domain.entities.session import Session, SessionNotActiveError, SessionState
+from domain.events.session_events import MessageAdded, SessionStarted
 from domain.value_objects.content import Content
-from domain.events.session_events import SessionStarted, MessageAdded
+from domain.value_objects.ids import AgentId, UserId
 
 
 class TestSession:
