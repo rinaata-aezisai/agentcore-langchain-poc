@@ -1,6 +1,7 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
+import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 /**
  * Amplify Gen2 Backend定義
@@ -12,32 +13,16 @@ export const backend = defineBackend({
   data,
 });
 
-// Bedrockアクセス用のIAMポリシーを追加
-const bedrockPolicy = {
-  Version: '2012-10-17',
-  Statement: [
-    {
-      Effect: 'Allow',
-      Action: [
-        'bedrock:InvokeModel',
-        'bedrock:InvokeModelWithResponseStream',
-      ],
-      Resource: [
-        'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-*',
-      ],
-    },
-  ],
-};
-
 // 認証済みユーザーにBedrockアクセス権限を付与
-backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy({
-  Effect: 'Allow',
-  Action: [
+const bedrockPolicy = new PolicyStatement({
+  effect: Effect.ALLOW,
+  actions: [
     'bedrock:InvokeModel',
     'bedrock:InvokeModelWithResponseStream',
   ],
-  Resource: [
+  resources: [
     'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-*',
   ],
-} as any);
+});
 
+backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy(bedrockPolicy);
