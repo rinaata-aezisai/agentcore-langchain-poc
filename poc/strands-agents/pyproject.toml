@@ -1,0 +1,23 @@
+[project]
+name = "poc-strands-agents"
+version = "0.1.0"
+description = "AWS Bedrock AgentCore (Strands Agents) PoC"
+requires-python = ">=3.11"
+
+dependencies = [
+    # Strands Agents (AgentCore)
+    "strands-agents>=0.1.0",
+    
+    # backend参照 (editable install)
+    # pip install -e ../../backend
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3.0", "pytest-asyncio>=0.24.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "../../backend/src"]
