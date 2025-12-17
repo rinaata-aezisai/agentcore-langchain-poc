@@ -21,7 +21,7 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPO_NAME: agentcore-poc-runtime
-  AGENT_NAME: agentcore-poc-strands
+  AGENT_NAME: agentcore_poc_strands
 
 jobs:
   deploy:
