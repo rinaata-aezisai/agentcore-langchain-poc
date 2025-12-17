@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { MessageItem, MessageSkeleton } from "@/entities/message/ui/message-item";
 import { ChatInput } from "@/features/send-message/ui/chat-input";
-import { authenticatedSessionApi } from "@/shared/api/amplify-client";
+import { agentCoreSessionApi } from "@/shared/api/agentcore-client";
 import { cn } from "@/shared/lib/utils";
 
 interface ChatMessage {
@@ -26,7 +26,7 @@ export function ChatWindow() {
   // セッション作成
   const createSession = useMutation({
     mutationFn: () =>
-      authenticatedSessionApi.create({
+      agentCoreSessionApi.create({
         agent_type: agentType,
       }),
     onSuccess: (data) => {
@@ -42,7 +42,7 @@ export function ChatWindow() {
   const sendMessage = useMutation({
     mutationFn: (instruction: string) => {
       if (!sessionId) throw new Error("No session");
-      return authenticatedSessionApi.sendMessage(sessionId, { instruction });
+      return agentCoreSessionApi.sendMessage(sessionId, { instruction });
     },
     onMutate: (instruction) => {
       // Optimistic update - ユーザーメッセージを即座に表示
