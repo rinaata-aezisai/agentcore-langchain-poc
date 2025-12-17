@@ -96,9 +96,23 @@ sessions: dict[str, dict] = {}
 # --- Invocation Models (AgentCore必須) ---
 
 class InvocationInput(BaseModel):
-    prompt: str
+    # 基本フィールド（チャット用）
+    prompt: str | None = None
     messages: list[dict[str, Any]] | None = None
     tools: list[dict[str, Any]] | None = None
+    # アクションベースルーティング用
+    action: str | None = None
+    # セッション関連
+    session_id: str | None = None
+    user_id: str | None = None
+    agent_id: str | None = None
+    agent_type: str | None = None
+    instruction: str | None = None
+    limit: int | None = None
+    offset: int | None = None
+    # ベンチマーク関連
+    test_cases: list[str] | None = None
+    iterations: int | None = None
 
 
 class InvocationRequest(BaseModel):
@@ -205,16 +219,38 @@ class ToolsResponse(BaseModel):
 # AgentCore必須エンドポイント
 # ===========================================
 
-@app.post("/invocations", response_model=InvocationResponse)
+@app.post("/invocations")
 async def invoke_agent(request: InvocationRequest):
-    """エージェント呼び出しエンドポイント (AgentCore必須)"""
+    """エージェント呼び出しエンドポイント (AgentCore必須)
+    
+    アクションベースルーティング:
+    - action=None or prompt指定: 通常のチャット
+    - action="create_session": セッション作成
+    - action="get_session": セッション取得
+    - action="send_message": メッセージ送信
+    - action="get_messages": メッセージ一覧取得
+    - action="end_session": セッション終了
+    - action="get_agent_info": エージェント情報
+    - action="get_agent_comparison": エージェント比較
+    - action="get_agent_tools": ツール一覧
+    - action="health_check": ヘルスチェック
+    - action="service_*_execute": サービス実行
+    """
     try:
-        user_message = request.input.prompt
+        action = request.input.action
+        
+        # アクションベースルーティング
+        if action:
+            result = await handle_action(action, request.input)
+            return make_invocation_response(json.dumps(result, ensure_ascii=False, default=str))
+        
+        # 通常のチャット処理
+        user_message = request.input.prompt or request.input.instruction
         
         if not user_message:
             raise HTTPException(
                 status_code=400,
-                detail="No prompt found in input.",
+                detail="No prompt or action found in input.",
             )
         
         logger.info(f"Processing invocation: {user_message[:100]}...")
@@ -235,21 +271,341 @@ async def invoke_agent(request: InvocationRequest):
         else:
             response_text = str(result)
         
-        return InvocationResponse(
-            output=InvocationOutput(
-                message=InvocationMessage(
-                    role="assistant",
-                    content=[MessageContent(text=response_text)],
-                ),
-                timestamp=datetime.utcnow().isoformat(),
-            )
-        )
+        return make_invocation_response(response_text)
         
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Agent processing failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def make_invocation_response(text: str) -> dict:
+    """InvocationResponse形式のレスポンスを生成"""
+    return {
+        "output": {
+            "message": {
+                "role": "assistant",
+                "content": [{"text": text}],
+            },
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    }
+
+
+async def handle_action(action: str, input_data: InvocationInput) -> dict:
+    """アクションに応じた処理を実行"""
+    logger.info(f"Handling action: {action}")
+    
+    # セッション関連
+    if action == "create_session":
+        return await _create_session(input_data)
+    elif action == "get_session":
+        return await _get_session(input_data.session_id)
+    elif action == "send_message":
+        return await _send_message(input_data)
+    elif action == "get_messages":
+        return await _get_messages(input_data)
+    elif action == "end_session":
+        return await _end_session(input_data.session_id)
+    
+    # エージェント情報
+    elif action == "get_agent_info":
+        return await _get_agent_info()
+    elif action == "get_agent_comparison":
+        return await _get_agent_comparison()
+    elif action == "get_agent_tools":
+        return await _get_agent_tools()
+    
+    # ヘルスチェック
+    elif action == "health_check":
+        return {"status": "healthy", "version": "1.0.0", "agent_type": "strands", "model_id": MODEL_ID}
+    
+    # サービス実行（runtime, memory, etc.）
+    elif action.startswith("service_") and action.endswith("_execute"):
+        service_name = action.replace("service_", "").replace("_execute", "")
+        return await _execute_service(service_name, input_data)
+    
+    # ベンチマーク
+    elif action == "run_benchmark":
+        return await _run_benchmark(input_data)
+    elif action == "get_benchmark_results":
+        return {"results": []}  # TODO: 実装
+    
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
+
+
+async def _create_session(input_data: InvocationInput) -> dict:
+    """セッション作成"""
+    session_id = str(uuid.uuid4())
+    agent_id = input_data.agent_id or "strands-agent"
+    created_at = datetime.utcnow().isoformat()
+    
+    sessions[session_id] = {
+        "session_id": session_id,
+        "agent_id": agent_id,
+        "user_id": input_data.user_id,
+        "agent_type": input_data.agent_type or "strands",
+        "state": "active",
+        "created_at": created_at,
+        "messages": [],
+    }
+    
+    logger.info(f"Session created: {session_id}")
+    
+    return {
+        "session_id": session_id,
+        "agent_id": agent_id,
+        "agent_type": input_data.agent_type or "strands",
+        "created_at": created_at,
+    }
+
+
+async def _get_session(session_id: str | None) -> dict:
+    """セッション取得"""
+    if not session_id or session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = sessions[session_id]
+    return {
+        "session_id": session["session_id"],
+        "agent_id": session["agent_id"],
+        "agent_type": session.get("agent_type", "strands"),
+        "state": session["state"],
+        "created_at": session["created_at"],
+        "message_count": len(session["messages"]),
+    }
+
+
+async def _send_message(input_data: InvocationInput) -> dict:
+    """メッセージ送信"""
+    session_id = input_data.session_id
+    instruction = input_data.instruction or input_data.prompt
+    
+    if not session_id or session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not instruction:
+        raise HTTPException(status_code=400, detail="No instruction provided")
+    
+    start_time = time.time()
+    
+    # ユーザーメッセージを保存
+    user_msg_id = str(uuid.uuid4())
+    sessions[session_id]["messages"].append({
+        "id": user_msg_id,
+        "role": "user",
+        "content": instruction,
+        "created_at": datetime.utcnow().isoformat(),
+    })
+    
+    # Strands Agentで応答生成
+    logger.info(f"Processing message in session {session_id}: {instruction[:100]}...")
+    result = strands_agent(instruction)
+    
+    # レスポンス抽出
+    response_text = ""
+    if hasattr(result, "message"):
+        msg = result.message
+        if hasattr(msg, "content") and msg.content:
+            for content_item in msg.content:
+                if hasattr(content_item, "text"):
+                    response_text += content_item.text
+                elif isinstance(content_item, dict) and "text" in content_item:
+                    response_text += content_item["text"]
+        elif isinstance(msg, str):
+            response_text = msg
+    else:
+        response_text = str(result)
+    
+    latency_ms = int((time.time() - start_time) * 1000)
+    
+    # アシスタントメッセージを保存
+    assistant_msg_id = str(uuid.uuid4())
+    sessions[session_id]["messages"].append({
+        "id": assistant_msg_id,
+        "role": "assistant",
+        "content": response_text,
+        "created_at": datetime.utcnow().isoformat(),
+    })
+    
+    logger.info(f"Response generated in {latency_ms}ms")
+    
+    return {
+        "response_id": assistant_msg_id,
+        "content": response_text,
+        "tool_calls": None,
+        "latency_ms": latency_ms,
+        "metadata": {
+            "model_id": MODEL_ID,
+            "provider": "strands",
+        },
+    }
+
+
+async def _get_messages(input_data: InvocationInput) -> dict:
+    """メッセージ一覧取得"""
+    session_id = input_data.session_id
+    limit = input_data.limit or 50
+    offset = input_data.offset or 0
+    
+    if not session_id or session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    messages = sessions[session_id]["messages"]
+    return {
+        "messages": messages[offset:offset + limit],
+        "total_count": len(messages),
+    }
+
+
+async def _end_session(session_id: str | None) -> dict:
+    """セッション終了"""
+    if not session_id or session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    sessions[session_id]["state"] = "ended"
+    logger.info(f"Session ended: {session_id}")
+    
+    return {"status": "ended", "session_id": session_id}
+
+
+async def _get_agent_info() -> dict:
+    """エージェント情報"""
+    return {
+        "agent_type": "strands",
+        "model_id": MODEL_ID,
+        "provider": "AWS Bedrock AgentCore",
+        "capabilities": ["conversation", "tool_use", "memory", "streaming"],
+    }
+
+
+async def _get_agent_comparison() -> dict:
+    """エージェント比較"""
+    return {
+        "strands": {
+            "name": "AWS Strands Agents",
+            "strengths": [
+                "AWS Bedrockネイティブ統合",
+                "AgentCore Memory/Identity連携",
+                "サーバーレス実行",
+                "エンタープライズセキュリティ",
+            ],
+            "features": {
+                "bedrock_native": True,
+                "memory_api": True,
+                "serverless": True,
+                "multi_provider": False,
+                "open_source": True,
+            },
+        },
+        "langchain": {
+            "name": "LangChain + LangGraph",
+            "strengths": [
+                "豊富なエコシステム",
+                "マルチプロバイダー対応",
+                "柔軟なワークフロー",
+                "コミュニティサポート",
+            ],
+            "features": {
+                "bedrock_native": False,
+                "memory_api": False,
+                "serverless": False,
+                "multi_provider": True,
+                "open_source": True,
+            },
+        },
+    }
+
+
+async def _get_agent_tools() -> dict:
+    """ツール一覧"""
+    return {
+        "agent_type": "strands",
+        "tools": [
+            {"name": "get_current_weather", "description": "現在の天気を取得", "available": True},
+            {"name": "search_documents", "description": "ドキュメント検索", "available": True},
+            {"name": "calculate", "description": "数式計算", "available": True},
+            {"name": "create_task", "description": "タスク作成", "available": True},
+            {"name": "fetch_url", "description": "URL取得", "available": True},
+        ],
+        "total_count": 5,
+    }
+
+
+async def _execute_service(service_name: str, input_data: InvocationInput) -> dict:
+    """サービス実行"""
+    instruction = input_data.instruction or input_data.prompt
+    
+    if not instruction:
+        raise HTTPException(status_code=400, detail="No instruction provided")
+    
+    start_time = time.time()
+    
+    logger.info(f"Executing service '{service_name}': {instruction[:100]}...")
+    
+    # Strands Agentで処理
+    result = strands_agent(instruction)
+    
+    response_text = ""
+    if hasattr(result, "message"):
+        msg = result.message
+        if hasattr(msg, "content") and msg.content:
+            for content_item in msg.content:
+                if hasattr(content_item, "text"):
+                    response_text += content_item.text
+                elif isinstance(content_item, dict) and "text" in content_item:
+                    response_text += content_item["text"]
+        elif isinstance(msg, str):
+            response_text = msg
+    else:
+        response_text = str(result)
+    
+    latency_ms = int((time.time() - start_time) * 1000)
+    
+    return {
+        "response_id": str(uuid.uuid4()),
+        "content": response_text,
+        "tool_calls": None,
+        "latency_ms": latency_ms,
+        "metadata": {
+            "service": service_name,
+            "model_id": MODEL_ID,
+            "provider": "strands",
+        },
+    }
+
+
+async def _run_benchmark(input_data: InvocationInput) -> dict:
+    """ベンチマーク実行"""
+    test_cases = input_data.test_cases or []
+    iterations = input_data.iterations or 1
+    
+    results = []
+    for test_case in test_cases:
+        start_time = time.time()
+        try:
+            result = strands_agent(test_case)
+            response_text = str(result)
+            success = True
+        except Exception as e:
+            response_text = str(e)
+            success = False
+        
+        latency_ms = int((time.time() - start_time) * 1000)
+        
+        results.append({
+            "test_name": test_case[:50],
+            "strands_latency_ms": latency_ms,
+            "langchain_latency_ms": 0,  # LangChain未実装
+            "strands_success": success,
+            "langchain_success": False,
+            "strands_response": response_text[:500],
+            "langchain_response": None,
+        })
+    
+    return {"results": results}
 
 
 @app.get("/ping")
