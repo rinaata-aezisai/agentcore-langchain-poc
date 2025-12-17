@@ -53,3 +53,16 @@ export const apiConfig = {
   bedrockRegion: process.env.NEXT_PUBLIC_BEDROCK_REGION || 'ap-northeast-1',
   bedrockModelId: process.env.NEXT_PUBLIC_BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0',
 };
+
+// AgentCore Runtime設定
+export const agentCoreConfig = {
+  region: process.env.NEXT_PUBLIC_AGENTCORE_REGION || 'ap-northeast-1',
+  runtimeArn: process.env.NEXT_PUBLIC_AGENTCORE_RUNTIME_ARN || '',
+  // エンドポイントURLを動的に生成
+  getEndpoint: () => {
+    const { region, runtimeArn } = agentCoreConfig;
+    if (!runtimeArn) return '';
+    const encodedArn = encodeURIComponent(runtimeArn);
+    return `https://bedrock-agentcore.${region}.amazonaws.com/runtimes/${encodedArn}/invocations`;
+  },
+};
