@@ -2,7 +2,7 @@
 # AWS公式要件: ARM64アーキテクチャ必須
 # https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/getting-started-custom.html
 
-FROM --platform=linux/arm64 python:3.11-slim-bookworm
+FROM python:3.11-slim-bookworm
 
 # 環境変数
 ENV PYTHONUNBUFFERED=1 \
@@ -12,9 +12,17 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# 依存関係をインストール
+# 依存関係ファイルをコピー
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir .
+
+# 依存関係のみをインストール（パッケージとしてではなく）
+RUN pip install --no-cache-dir \
+    "fastapi>=0.115.0" \
+    "uvicorn[standard]>=0.32.0" \
+    "pydantic>=2.0.0" \
+    "strands-agents>=1.20.0" \
+    "boto3>=1.35.0" \
+    "httpx>=0.27.0"
 
 # アプリケーションコードをコピー
 COPY agent.py ./
