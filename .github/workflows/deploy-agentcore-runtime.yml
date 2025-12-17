@@ -153,17 +153,27 @@ jobs:
         run: |
           ECR_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}:latest"
           
-          EXISTING_ARN=$(aws bedrock-agentcore-control list-agent-runtimes \
+          # Check for existing runtime
+          EXISTING_RUNTIME=$(aws bedrock-agentcore-control list-agent-runtimes \
             --region ${{ env.AWS_REGION }} \
-            --query "agentRuntimes[?agentRuntimeName=='${{ env.AGENT_NAME }}'].agentRuntimeArn" \
-            --output text 2>/dev/null || echo "")
+            --query "agentRuntimes[?agentRuntimeName=='${{ env.AGENT_NAME }}']" \
+            --output json 2>/dev/null || echo "[]")
           
-          if [ -n "$EXISTING_ARN" ] && [ "$EXISTING_ARN" != "None" ]; then
+          EXISTING_ARN=$(echo "$EXISTING_RUNTIME" | jq -r '.[0].agentRuntimeArn // empty')
+          EXISTING_ID=$(echo "$EXISTING_RUNTIME" | jq -r '.[0].agentRuntimeId // empty')
+          
+          if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
             echo "Updating existing AgentCore Runtime..."
+            echo "  Runtime ID: $EXISTING_ID"
+            echo "  Runtime ARN: $EXISTING_ARN"
             
+            # update-agent-runtime requires: --agent-runtime-id, --agent-runtime-artifact, --role-arn, --network-configuration
+            # Reference: https://docs.aws.amazon.com/cli/latest/reference/bedrock-agentcore-control/update-agent-runtime.html
             aws bedrock-agentcore-control update-agent-runtime \
-              --agent-runtime-arn "$EXISTING_ARN" \
+              --agent-runtime-id "$EXISTING_ID" \
               --agent-runtime-artifact "{\"containerConfiguration\":{\"containerUri\":\"$ECR_URI\"}}" \
+              --role-arn "${{ env.ROLE_ARN }}" \
+              --network-configuration '{"networkMode":"PUBLIC"}' \
               --region ${{ env.AWS_REGION }}
             
             AGENT_RUNTIME_ARN="$EXISTING_ARN"
