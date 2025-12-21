@@ -1,11 +1,11 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { configureAmplify } from "@/lib/amplify-config";
 
-// Amplify設定の初期化
-let amplifyConfigured = false;
+// Amplify設定の初期化（モジュールロード時に実行）
+configureAmplify();
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -16,13 +16,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       },
     },
   }));
-
-  useEffect(() => {
-    if (!amplifyConfigured) {
-      configureAmplify();
-      amplifyConfigured = true;
-    }
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
