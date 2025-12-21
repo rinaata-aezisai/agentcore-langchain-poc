@@ -67,6 +67,9 @@ export class EventStoreStack extends cdk.Stack {
     this.eventBus.archive('EventArchive', {
       archiveName: `agentcore-poc-archive-${environment}`,
       retention: cdk.Duration.days(environment === 'prod' ? 365 : 30),
+      eventPattern: {
+        source: ['agentcore-poc'],
+      },
     });
 
     // ===========================================
@@ -93,4 +96,5 @@ export class EventStoreStack extends cdk.Stack {
     });
   }
 }
+
 

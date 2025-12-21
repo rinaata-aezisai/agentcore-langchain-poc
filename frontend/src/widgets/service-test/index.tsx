@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { agentCoreServiceApi, ServiceExecuteResponse } from "@/shared/api/agentcore-client";
+import { backendServiceApi, ServiceExecuteResponse } from "@/shared/api/backend-client";
 import { cn } from "@/shared/lib/utils";
 
 interface ServiceTestProps {
@@ -31,7 +31,7 @@ interface TestResult {
   error?: string;
 }
 
-type ServiceKey = keyof typeof agentCoreServiceApi;
+type ServiceKey = keyof typeof backendServiceApi;
 
 export function ServiceTest({
   serviceName,
@@ -72,7 +72,7 @@ export function ServiceTest({
       agentType: "strands" | "langchain";
     }): Promise<ServiceExecuteResponse> => {
       const serviceKey = getServiceKey(serviceName);
-      const api = agentCoreServiceApi[serviceKey];
+      const api = backendServiceApi[serviceKey];
       return api.execute({
         instruction: testCase.prompt,
         agent_type: agentType,
@@ -112,7 +112,7 @@ export function ServiceTest({
   const runAllTests = useMutation({
     mutationFn: async (agentType: "strands" | "langchain") => {
       const serviceKey = getServiceKey(serviceName);
-      const api = agentCoreServiceApi[serviceKey];
+      const api = backendServiceApi[serviceKey];
       
       const results = [];
       for (const testCase of testCases) {

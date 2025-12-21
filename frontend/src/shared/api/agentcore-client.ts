@@ -63,7 +63,7 @@ async function getAuthToken(): Promise<string | null> {
  */
 async function invokeAgentCore<T>(
   action: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown> | object,
   sessionId?: string
 ): Promise<T> {
   const endpoint = getAgentCoreEndpoint();
@@ -175,7 +175,7 @@ export interface Message {
 
 export const agentCoreSessionApi = {
   create: (data: CreateSessionRequest) =>
-    invokeAgentCore<CreateSessionResponse>('create_session', data),
+    invokeAgentCore<CreateSessionResponse>('create_session', data as unknown as Record<string, unknown>),
 
   get: (sessionId: string) =>
     invokeAgentCore<SessionInfo>('get_session', { session_id: sessionId }, sessionId),
@@ -284,7 +284,7 @@ export interface ServiceExecuteResponse {
 
 const createAgentCoreServiceApi = (serviceName: string) => ({
   execute: (data: ServiceExecuteRequest) =>
-    invokeAgentCore<ServiceExecuteResponse>(`service_${serviceName}_execute`, data),
+    invokeAgentCore<ServiceExecuteResponse>(`service_${serviceName}_execute`, data as unknown as Record<string, unknown>),
 });
 
 export const agentCoreServiceApi = {

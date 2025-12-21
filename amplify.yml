@@ -17,3 +17,4 @@ applications:
           - node_modules/**/*
     appRoot: frontend
 
+
