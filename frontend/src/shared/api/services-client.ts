@@ -79,7 +79,7 @@ interface ServiceConfig {
 // デプロイ済みのサービス設定
 const DEPLOYED_SERVICES = {
   langchain: {
-    url: "https://hqtuy24tbjdzbobyg4tzsr2xhe0rjmbx.lambda-url.us-east-1.on.aws",
+    url: "https://fqr4tujkvmwtd6kn57wl5zhvqe0rqcjr.lambda-url.us-east-1.on.aws",
     region: "us-east-1",
     type: "lambda" as const,
   },
