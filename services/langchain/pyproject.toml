@@ -1,0 +1,38 @@
+[project]
+name = "langchain-service"
+version = "1.0.0"
+description = "Lambda Container - LangChain/LangGraph Service"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain>=0.3.0",
+    "langchain-aws>=0.2.0",
+    "langchain-core>=0.3.0",
+    "langgraph>=0.2.0",
+    "boto3>=1.35.0",
+    "httpx>=0.27.0",
+    "python-ulid>=2.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+lambda = [
+    "awslambdaric>=2.0.0",
+    "mangum>=0.17.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+

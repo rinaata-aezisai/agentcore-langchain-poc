@@ -118,3 +118,4 @@ class TestGetSessionHandler:
 
         assert result is None
 
+

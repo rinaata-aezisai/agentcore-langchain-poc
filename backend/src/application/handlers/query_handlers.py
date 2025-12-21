@@ -110,3 +110,4 @@ class GetActiveSessionsHandler:
             message_count=len(session.messages),
         )
 
+

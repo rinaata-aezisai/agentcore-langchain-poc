@@ -104,3 +104,4 @@ class InMemoryEventPublisher(EventPublisher):
     def get_events_by_type(self, event_type: str) -> list[Any]:
         return [e for e, t in self.published_events if t == event_type]
 
+

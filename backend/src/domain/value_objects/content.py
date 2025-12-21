@@ -34,3 +34,4 @@ class EmptyContentError(Exception):
         super().__init__("Content cannot be empty")
 
 
+
