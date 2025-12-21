@@ -4,6 +4,7 @@ import * as cdk from 'aws-cdk-lib';
 import { EventStoreStack } from '../lib/event-store-stack';
 import { EcrStack } from '../lib/ecr-stack';
 import { EcsStack } from '../lib/ecs-stack';
+import { ServicesStack } from '../lib/services-stack';
 
 const app = new cdk.App();
 
@@ -21,7 +22,19 @@ const commonTags = {
 };
 
 // ===========================================
+// Services Stack (AgentCore + LangChain)
+// 新しいシンプルなアーキテクチャ
+// ===========================================
+const servicesStack = new ServicesStack(app, `AgentCorePoc-Services-${environment}`, {
+  env,
+  environment,
+  description: 'AgentCore and LangChain services for comparison PoC',
+  tags: commonTags,
+});
+
+// ===========================================
 // Event Store Stack (DynamoDB + EventBridge)
+// オプション: イベントソーシングが必要な場合
 // ===========================================
 const eventStoreStack = new EventStoreStack(app, `AgentCorePoc-EventStore-${environment}`, {
   env,
@@ -31,7 +44,7 @@ const eventStoreStack = new EventStoreStack(app, `AgentCorePoc-EventStore-${envi
 });
 
 // ===========================================
-// ECR Stack (Container Registries)
+// ECR Stack (Container Registries) - レガシー
 // ===========================================
 const ecrStack = new EcrStack(app, `AgentCorePoc-ECR-${environment}`, {
   env,
@@ -41,7 +54,7 @@ const ecrStack = new EcrStack(app, `AgentCorePoc-ECR-${environment}`, {
 });
 
 // ===========================================
-// ECS Stack (Fargate Services)
+// ECS Stack (Fargate Services) - レガシー
 // ===========================================
 const ecsStack = new EcsStack(app, `AgentCorePoc-ECS-${environment}`, {
   env,
