@@ -201,7 +201,7 @@ export async function chat(
   service: ServiceType,
   request: ChatRequest
 ): Promise<ChatResponse> {
-  return callServiceApi<ChatResponse>(service, "/api/v1/chat", "POST", request);
+  return callServiceApi<ChatResponse>(service, "/api/v1/chat", "POST", request as unknown as Record<string, unknown>);
 }
 
 /**
@@ -214,7 +214,7 @@ export async function chatWithTools(
   return callServiceApi<ChatResponse>(service, "/api/v1/chat/tools", "POST", {
     ...request,
     use_tools: true,
-  });
+  } as unknown as Record<string, unknown>);
 }
 
 /**
@@ -324,7 +324,7 @@ export async function chatSimple(
     service,
     "/api/v1/chat",
     "POST",
-    request
+    request as unknown as Record<string, unknown>
   );
 }
 
