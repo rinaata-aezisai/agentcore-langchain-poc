@@ -76,15 +76,30 @@ interface ServiceConfig {
   };
 }
 
+// デプロイ済みのサービス設定
+const DEPLOYED_SERVICES = {
+  langchain: {
+    url: "https://hqtuy24tbjdzbobyg4tzsr2xhe0rjmbx.lambda-url.us-east-1.on.aws",
+    region: "us-east-1",
+    type: "lambda" as const,
+  },
+  agentcore: {
+    runtimeArn: "arn:aws:bedrock-agentcore:us-east-1:226484346947:runtime/agentcore_strands_dev-sSCXyh2bVa",
+    endpointId: "agentcore_strands_dev_endpoint",
+    region: "us-east-1",
+    type: "agentcore-runtime" as const,
+  },
+};
+
 // 環境変数またはAmplify outputsから取得
 function getServiceConfig(): ServiceConfig {
-  // 本番環境では環境変数から取得
+  // 環境変数でオーバーライド可能
   const agentcoreUrl =
     process.env.NEXT_PUBLIC_AGENTCORE_URL ||
-    "https://agentcore-service.example.com";
+    DEPLOYED_SERVICES.agentcore.runtimeArn;
   const langchainUrl =
     process.env.NEXT_PUBLIC_LANGCHAIN_URL ||
-    "https://langchain-service.lambda-url.us-east-1.on.aws";
+    DEPLOYED_SERVICES.langchain.url;
   const region = process.env.NEXT_PUBLIC_AWS_REGION || "us-east-1";
 
   return {

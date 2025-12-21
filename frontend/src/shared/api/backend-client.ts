@@ -1,16 +1,36 @@
 'use client';
 
+import { fetchAuthSession } from 'aws-amplify/auth';
+import { SignatureV4 } from '@smithy/signature-v4';
+import { Sha256 } from '@aws-crypto/sha256-js';
+import { HttpRequest } from '@smithy/protocol-http';
+
 /**
  * Backend API Client
  * 
- * Amplify API Gateway または ECSバックエンドAPIを呼び出すクライアント。
- * 優先順位:
- * 1. NEXT_PUBLIC_API_URL環境変数
- * 2. Amplify outputsのcustom.serviceApiUrl
- * 3. デフォルト (localhost:8000)
+ * AgentCore Runtime と LangChain Lambda に直接接続するクライアント。
+ * IAM認証 (SigV4) を使用。
  */
 
-// Amplify outputsから取得を試みる
+// ===========================================
+// Deployed Service Configuration
+// ===========================================
+
+const SERVICES = {
+  langchain: {
+    url: 'https://hqtuy24tbjdzbobyg4tzsr2xhe0rjmbx.lambda-url.us-east-1.on.aws',
+    region: 'us-east-1',
+    service: 'lambda',
+  },
+  agentcore: {
+    runtimeArn: 'arn:aws:bedrock-agentcore:us-east-1:226484346947:runtime/agentcore_strands_dev-sSCXyh2bVa',
+    endpointId: 'agentcore_strands_dev_endpoint',
+    region: 'us-east-1',
+    service: 'bedrock-agentcore',
+  },
+};
+
+// レガシー互換用
 let cachedApiUrl: string | null = null;
 
 const getBackendUrl = (): string => {
@@ -41,8 +61,8 @@ const getBackendUrl = (): string => {
     }
   }
   
-  // 3. デフォルト
-  cachedApiUrl = 'http://localhost:8000';
+  // 3. デフォルト - LangChain Lambda URL
+  cachedApiUrl = SERVICES.langchain.url;
   return cachedApiUrl;
 };
 
@@ -55,6 +75,110 @@ export class BackendApiError extends Error {
     super(message);
     this.name = 'BackendApiError';
   }
+}
+
+// ===========================================
+// SigV4 認証
+// ===========================================
+
+async function signRequest(
+  request: HttpRequest,
+  region: string,
+  service: string
+): Promise<HttpRequest> {
+  try {
+    const session = await fetchAuthSession();
+    const credentials = session.credentials;
+
+    if (!credentials) {
+      console.warn('No AWS credentials available, sending unauthenticated request');
+      return request;
+    }
+
+    const signer = new SignatureV4({
+      credentials: {
+        accessKeyId: credentials.accessKeyId,
+        secretAccessKey: credentials.secretAccessKey,
+        sessionToken: credentials.sessionToken,
+      },
+      region,
+      service,
+      sha256: Sha256,
+    });
+
+    return (await signer.sign(request)) as HttpRequest;
+  } catch (error) {
+    console.warn('Failed to sign request:', error);
+    return request;
+  }
+}
+
+// ===========================================
+// LangChain Lambda API
+// ===========================================
+
+async function callLangChainApi<T>(
+  path: string,
+  method: 'GET' | 'POST' = 'GET',
+  body?: Record<string, unknown>
+): Promise<T> {
+  const config = SERVICES.langchain;
+  const url = new URL(path, config.url);
+
+  // HttpRequest 作成
+  const request = new HttpRequest({
+    method,
+    protocol: url.protocol,
+    hostname: url.hostname,
+    port: url.port ? parseInt(url.port) : undefined,
+    path: url.pathname,
+    headers: {
+      'Content-Type': 'application/json',
+      host: url.hostname,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  // SigV4 署名
+  const signedRequest = await signRequest(request, config.region, config.service);
+
+  const response = await fetch(url.toString(), {
+    method: signedRequest.method,
+    headers: signedRequest.headers as Record<string, string>,
+    body: signedRequest.body,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new BackendApiError(response.status, response.statusText, errorText);
+  }
+
+  return response.json();
+}
+
+// ===========================================
+// AgentCore Runtime API (簡易実装)
+// ===========================================
+
+async function callAgentCoreApi<T>(
+  instruction: string
+): Promise<T> {
+  const config = SERVICES.agentcore;
+  
+  // AgentCore Runtime は DataPlane API を使用
+  // フロントエンドからは直接呼び出し困難なため、LangChain Lambda 経由でプロキシ
+  // 本番環境ではバックエンドプロキシを使用することを推奨
+  
+  // 一時的にLangChain Lambda経由でAgentCoreエミュレーション
+  const response = await callLangChainApi<T>('/api/v1/chat', 'POST', {
+    instruction,
+    use_tools: false,
+    simulate_agentcore: true,
+    agentcore_runtime_arn: config.runtimeArn,
+    agentcore_endpoint_id: config.endpointId,
+  });
+
+  return response;
 }
 
 /**
@@ -146,42 +270,126 @@ export interface ServiceInfo {
 // Service API - サービス別エンドポイント
 // ===========================================
 
+/**
+ * 実際のデプロイ済みサービスを呼び出す実装
+ */
+async function executeOnDeployedService(
+  data: ServiceExecuteRequest
+): Promise<ServiceExecuteResponse> {
+  const startTime = Date.now();
+  
+  if (data.agent_type === 'langchain') {
+    // LangChain Lambda を直接呼び出し
+    const response = await callLangChainApi<{
+      response_id: string;
+      content: string;
+      tool_calls: Record<string, unknown>[] | null;
+      latency_ms: number;
+      metadata: Record<string, unknown>;
+    }>('/api/v1/chat', 'POST', {
+      instruction: data.instruction,
+      use_tools: data.tools && data.tools.length > 0,
+      session_id: data.session_id,
+    });
+
+    return {
+      response_id: response.response_id,
+      content: response.content,
+      tool_calls: response.tool_calls || undefined,
+      latency_ms: response.latency_ms || (Date.now() - startTime),
+      metadata: {
+        ...response.metadata,
+        service: 'langchain',
+      },
+      framework_features: ['LangChain', 'LangGraph', 'Checkpointing'],
+    };
+  } else {
+    // AgentCore (strands) - Lambda経由でエミュレーション or 直接呼び出し
+    // 注: フロントエンドからAgentCore DataPlane APIを直接呼ぶのは制限あり
+    // Lambda経由でプロキシする実装
+    const response = await callLangChainApi<{
+      response_id: string;
+      content: string;
+      tool_calls: Record<string, unknown>[] | null;
+      latency_ms: number;
+      metadata: Record<string, unknown>;
+    }>('/api/v1/chat', 'POST', {
+      instruction: data.instruction,
+      use_tools: data.tools && data.tools.length > 0,
+      session_id: data.session_id,
+      // AgentCore呼び出し用フラグ
+      target_service: 'agentcore',
+      agentcore_runtime_arn: SERVICES.agentcore.runtimeArn,
+    });
+
+    return {
+      response_id: response.response_id,
+      content: response.content,
+      tool_calls: response.tool_calls || undefined,
+      latency_ms: response.latency_ms || (Date.now() - startTime),
+      metadata: {
+        ...response.metadata,
+        service: 'agentcore',
+      },
+      framework_features: ['Strands Agents', 'AWS Native', 'BedrockModel'],
+    };
+  }
+}
+
 const createServiceApi = (serviceName: string) => ({
   /**
-   * サービス実行
+   * サービス実行 - デプロイ済みサービスに直接接続
    */
-  execute: (data: ServiceExecuteRequest): Promise<ServiceExecuteResponse> =>
-    callBackendApi<ServiceExecuteResponse>(
-      `/services/${serviceName}/execute`,
-      'POST',
-      data as unknown as Record<string, unknown>
-    ),
+  execute: async (data: ServiceExecuteRequest): Promise<ServiceExecuteResponse> => {
+    // デプロイ済みサービスに直接接続
+    return executeOnDeployedService(data);
+  },
 
   /**
    * ツール付き実行
    */
-  executeWithTools: (data: ServiceExecuteRequest): Promise<ServiceExecuteResponse> =>
-    callBackendApi<ServiceExecuteResponse>(
-      `/services/${serviceName}/execute-with-tools`,
-      'POST',
-      data as unknown as Record<string, unknown>
-    ),
+  executeWithTools: async (data: ServiceExecuteRequest): Promise<ServiceExecuteResponse> => {
+    return executeOnDeployedService({
+      ...data,
+      tools: data.tools || [{ name: 'default_tools' }],
+    });
+  },
 
   /**
    * 両フレームワークで比較実行
    */
-  compare: (data: ServiceExecuteRequest): Promise<ServiceComparisonResult> =>
-    callBackendApi<ServiceComparisonResult>(
-      `/services/${serviceName}/compare`,
-      'POST',
-      data as unknown as Record<string, unknown>
-    ),
+  compare: async (data: ServiceExecuteRequest): Promise<ServiceComparisonResult> => {
+    const [strandsResult, langchainResult] = await Promise.allSettled([
+      executeOnDeployedService({ ...data, agent_type: 'strands' }),
+      executeOnDeployedService({ ...data, agent_type: 'langchain' }),
+    ]);
+
+    return {
+      strands_result: strandsResult.status === 'fulfilled' ? strandsResult.value : undefined,
+      langchain_result: langchainResult.status === 'fulfilled' ? langchainResult.value : undefined,
+      comparison: {
+        strands_success: strandsResult.status === 'fulfilled',
+        langchain_success: langchainResult.status === 'fulfilled',
+        strands_error: strandsResult.status === 'rejected' ? strandsResult.reason?.message : null,
+        langchain_error: langchainResult.status === 'rejected' ? langchainResult.reason?.message : null,
+      },
+    };
+  },
 
   /**
    * サービス情報取得
    */
-  getInfo: (): Promise<ServiceInfo> =>
-    callBackendApi<ServiceInfo>(`/services/${serviceName}/info`),
+  getInfo: (): Promise<ServiceInfo> => {
+    // 静的な情報を返す
+    return Promise.resolve({
+      service: serviceName,
+      description: `${serviceName} comparison service`,
+      supported_agents: ['strands', 'langchain'],
+      strands_features: ['AWS Native', 'Bedrock Integration', 'Policy Support'],
+      langchain_features: ['LangGraph', 'Checkpointing', 'Multi-provider'],
+      comparison_available: true,
+    });
+  },
 });
 
 // ===========================================
