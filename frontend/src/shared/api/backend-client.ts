@@ -18,7 +18,7 @@ import { HttpRequest } from '@smithy/protocol-http';
 
 const SERVICES = {
   langchain: {
-    url: 'https://fqr4tujkvmwtd6kn57wl5zhvqe0rqcjr.lambda-url.us-east-1.on.aws',
+    url: 'https://hqtuy24tbjdzbobyg4tzsr2xhe0rjmbx.lambda-url.us-east-1.on.aws',
     region: 'us-east-1',
     service: 'lambda',
   },
